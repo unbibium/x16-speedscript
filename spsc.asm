@@ -541,13 +541,17 @@ KEYPRESS	TAX
 	STA (curr),Y
 	JMP main
 NOTBKS	LDA msgflg
-	BEQ NOMSG
+	BEQ nomsg
 	TXA
 	PHA
-	JSR sysmsg
+	jsr sysmsg
 	PLA
 	TAX
-NOMSG	TXA
+nomsg	TXA
+	CMP #13
+	BNE notcr
+	ldx #retchar+64
+notcr	txa
 	AND #127
 	CMP #32
 	BCC CONTROL
