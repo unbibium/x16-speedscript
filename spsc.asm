@@ -46,13 +46,6 @@
 	do_prmsg {1}
 	ENDM
 
-	mac COPY16X
-	ldx {1}
-	stx {2}
-	ldx {1}+1
-	stx {2}+1
-	endm
-
 	mac DISPLAY_NUMBER
 	ldy #55
 	sty map
