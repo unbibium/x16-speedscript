@@ -5,12 +5,11 @@
 
 	org $0801
 
-	BYTE $0B,$08,$0A,$00,158 
-	TEXT "2061" 
-	BYTE 0,0,0 
+	; sys2061
+	hex 0B080A009E32303631000000
 
 	; some macros
-	mac COPY16
+	mac copy16
 	lda {1}
 	sta {2}
 	lda {1}+1
@@ -57,7 +56,7 @@
 	mac DISPLAY_NUMBER
 	ldy #55
 	sta map
-	jsr #BDCD ;BASIC number display
+	jsr $BDCD ;BASIC number display
 	ldy #54
 	sty map
 	endm
@@ -69,71 +68,71 @@ SCRMEM equ $0400
 COLMEM equ $D800
 COLUMNS equ 40
 ROWS    equ 25
-SPACE   equ 32
+space   equ 32
 
 ;Locations used by high-speed memory 
 ;move routines: 
 
-FROML equ $26 
-FROMH equ $27 
-DESTL equ $9E 
-DESTH equ $9F 
-LLEN = $B4 
-HLEN = $B5 
+froml equ $26 
+fromh equ $27 
+destl equ $9E 
+desth equ $9F 
+llen = $B4 
+hlen = $B5 
 
-;CURR: Position of cursor within text 
-;memory. SCR: used by the REFRESH 
+;curr: Position of cursor within text 
+;memory. scr: used by the refresh 
 ;routine. 
 
-CURR = $39 
-SCR = $C3 
+curr = $39 
+scr = $C3 
 
-;TEX: An alternate location used in tan- 
-;dem with CURR. COLR is used by RE- 
-;FRESH. TEMP is used throughout as a 
+;tex: An alternate location used in tan- 
+;dem with curr. COLR is used by RE- 
+;FRESH. temp is used throughout as a 
 ;reusable scratchpad pointer. INDIR is 
 ;also a reusable indirect pointer. 
 ;UNDERCURS stores the value of the 
 ;character highlighted by the cursor. 
 
-TEX = $FB 
+tex = $FB 
 COLR = $14 
-TEMP = $3B 
-INDIR = $FD 
+temp = $3B 
+indir = $FD 
 UNDERCURS = $02 
 
 ;WINDCOLR: Color of command line 
-;window supported by REFRESH. MAP 
+;window supported by refresh. MAP 
 ;is the 6510's built-in I/O port, used for 
 ;mapping in and out ROMs from the 
 ;address space. RETCHAR is the screen- 
 ;code value of the return mark (a left- 
 ;pointing arrow). 
 
-WINDCOLR = $0C 
-MAP equ $01 
-RETCHAR equ 31 
+windcolr = $0C 
+map equ $01 
+retchar equ 31 
 
 ;Kernal Routines 
 ;(refer to the Commodore 64 Programmer's Reference ;Guide): 
 
-CHROUT = $FFD2 
-STOP = $FFE1 
-SETLFS = $FFBA 
-SETNAM = $FFBD 
-CLALL = $FFE7 
-OPEN = $FFCO 
-CHRIN = $FFCF 
-CHKIN = $FFC6 
-CHKOUT = $FFC9 
-GETIN - $FFE4 
-CLRCHN = $FFCC 
-CLOSE - $FFC3 
-LOAD = $FFD5 
-SAVE = $FFD8 
-lOINTF = $FF84 
+chrout = $FFD2 
+stop = $FFE1 
+setlfs = $FFBA 
+setnam = $FFBD 
+clall = $FFE7 
+open = $FFC0 
+chrin = $FFCF 
+chkin = $FFC6 
+chkout = $FFC9 
+getin = $FFE4 
+clrchn = $FFCC 
+close = $FFC3 
+load = $FFD5 
+save = $FFD8 
+ioinit = $FF84 
 
-Called only when run from BASIC. It is 
+;Called only when run from BASIC. It is 
 ;assumed that the author's initials (that 
 ;conveniently work out in hex) are not 
 ;normally present in memory. If they 
@@ -143,12 +142,12 @@ Called only when run from BASIC. It is
 
 BEGIN JSR INIT 
 	LDA #$CB 
-	CMP FIRSTRUN 
-	STA FIRSTRUN 
+	CMP firstrun 
+	STA firstrun 
 	BEQ SKIPERAS 
-	JSR ERASE 
+	JSR erase 
 SKIPERAS JSR INIT2 
-	JMP MAIN 
+	JMP main 
 
 ;UMOVE is a high-speed memory move 
 ;routine. It gets its speed from self- 
@@ -160,29 +159,29 @@ SKIPERAS JSR INIT2
 ;change the $0000's to $FFFF's. UMOVE 
 ;is used to move an overlapping range 
 ;of memory upward, so it is used to de- 
-;lete. Set FROML/FROMH to point to 
+;lete. Set froml/fromh to point to 
 ;the source area of memory, 
-;DESTL/DESTH to point to the destina- 
-;tion, and LLEN/HLEN to hold the 
+;destl/desth to point to the destina- 
+;tion, and llen/hlen to hold the 
 ;length of the area being moved. 
 
-UMOVE LDA FROML 
+umove LDA froml 
 	STA MOVLOOP+1 
-	LDA FROMH 
+	LDA fromh 
 	STA MOVLOOP+2 
-	LDA DESTL 
+	LDA destl 
 	STA MOVLOOP+4 
-	LDA DESTH 
+	LDA desth 
 	STA MOVLOOP+5 
-	LDX HLEN 
+	LDX hlen 
 	BEQ SKIPMOV 
 MOV1 	LDA #0 
-MOV2 	STA ENDPOS 
+MOV2 	STA endpos 
 	LDY #0 
 MOVLOOP LDA $0000,Y 
 	STA $0000,Y 
 	INY 
-	CPY ENDPOS 
+	CPY endpos 
 	BNE MOVLOOP 
 	INC MOVLOOP+2 
 	INC MOVLOOP+5 
@@ -190,32 +189,32 @@ MOVLOOP LDA $0000,Y
 	BEQ OUT
 	DEX
 	BNE MOV1
-SKIPMOV LDA LLEN
+SKIPMOV LDA llen
 	BNE MOV2
 OUT	RTS
 ;DMOVE uses the same variables as UMOVE, but is used to move an
 ;overlapping block of memory down ward, so it is used to insert. If the block
 ;of memory to be moved does not overlap the destination area, then either
 ;routine can be used.
-DMOVE	LDA HLEN
+dmove	LDA hlen
 	TAX
-	ORA LLEN
+	ORA llen
 	BNE NOTNULL
 	RTS
 NOTNULL	CLC
 	TXA
-	ADC FROMH
+	ADC fromh
 	STA DMOVLOOP+2
-	LDA FROML
+	LDA froml
 	STA DMOVLOOP+1
 	CLC
 	TXA
-	ADC DESTH
+	ADC desth
 	STA DMOVLOOP+5
-	LDA DESTL
+	LDA destl
 	STA DMOVLOOP+4
 	INX
-	LDY LLEN
+	LDY llen
 	BNE DMOVLOOP
 	BEQ SKIPDMOV
 DMOV1	LDY #255
@@ -227,12 +226,12 @@ DMOVLOOP LDA $0000,Y
 SKIPDMOV DEC DMOVLOOP+2 
 	DEC DMOVLOOP+5 
 	DEX 
-	BNE DMOVl 
+	BNE DMOV1 
 	RTS 
 
-;REFRESH copies a screenful of text 
+;refresh copies a screenful of text 
 ;from the area of memory pointed to by 
-;TOPLIN. It works like a printer routine, 
+;toplin. It works like a printer routine, 
 ;fitting a line of text between the screen 
 ;margins, wrapping words, and restarts 
 ;at the left margin after printing a car- 
@@ -242,44 +241,44 @@ SKIPDMOV DEC DMOVLOOP+2
 ;nate flicker, it also clears out the end of 
 ;each line instead of first clearing the 
 ;screen. It stores the length of the first 
-;screen line for the sake of the CHECK 
+;screen line for the sake of the check 
 ;routine (which scrolls up by adding 
-;that length to TOPLIN), the last text 
-;location referenced (so CHECK can see 
+;that length to toplin), the last text 
+;location referenced (so check can see 
 ;if the cursor has moved off the visible 
 ;screen). 
 
 
-REFRESH LDA #COLUMNS
+refresh LDA #COLUMNS
 
-	STA SCR 
+	STA scr 
 	STA COLR 
 	LDA #>SCRMEM
-	STA SCR+1
+	STA scr+1
 	LDA #>COLMEM
 	STA COLR+1 
-	LDA TOPLIN 
-	STA TEX 
-	LDA TOPLIN+1
-	STA TEX+1
+	LDA toplin 
+	STA tex 
+	LDA toplin+1
+	STA tex+1
 	LDX #1
 	LDA INSMODE
-	STA WINDCOLR
-	LDA SCRCOL
+	STA windcolr
+	LDA scrcol
 	STA 53280  ; VIC BORDER
 PPAGE	LDY #0
 PLINE	LDA TEXCOLR
 	STA (COLR),Y
-	LDA (TEX),Y
-	STA LBUFF,Y
+	LDA (tex),Y
+	STA lbuff,Y
 	INY
 	AND #127
-	CMP #RETCHAR
+	CMP #retchar
 	BEQ BREAK
 	CPY #COLUMNS
 	BNE PLINE
 	DEY
-SLOOP	LDA (TEX),Y
+SLOOP	LDA (tex),Y
 	AND #127
 NXCUR	CMP #32
 	BEQ SBRK
@@ -288,76 +287,76 @@ NXCUR	CMP #32
 	LDY #39
 SBRK	INY
 
-BREAK	STY TEMP
+BREAK	STY temp
 	DEY
-COPY	LDA LBUFF,Y
-	STA (SCR),Y
+COPY	LDA lbuff,Y
+	STA (scr),Y
 	DEY
 	BPL COPY
-	LDY TEMP
+	LDY temp
 	CLC
 	TYA
-	ADC TEX
-	STA TEX
-	LDA TEX+1
+	ADC tex
+	STA tex
+	LDA tex+1
 	ADC #0
-	STA TEX+1
+	STA tex+1
 	CPX #1
 	BNE CLRLN
 	STY LENTABLE
 CLRLN	CPY #COLUMNS
 	BEQ CLEARED
 	LDA #32
-	STA (SCR),Y
+	STA (scr),Y
 	INY
 	JMP CLRLN
 CLEARED	CLC
-	LDA
+	LDA scr
 	ADC #COLUMNS
-	STA SCR
+	STA scr
 	STA COLR
-	BCC INCNOT
-	INC SCR+1
+	BCC incnot
+	INC scr+1
 	INC COLR+1
-INCNOT	INX
+incnot	INX
 	CPX #ROWS
-	BEQ PDONE
+	BEQ pdone
 	JMP PPAGE
-	LDA TEX
+pdone	LDA tex
 	STA BOTSCR
-	LDA TEX+1
+	LDA tex+1
 	STA BOTSCR+1
 	RTS
 
 ; comment from left column of page 99
 
-ERASE	LDA TEXSTART
-	STA TEX
-	STA TOPLIN
-	STA LASTLINE
-	STA CURR
-	LDA TEXSTART+1
-	STA TEX+1
-	STA TOPLIN+1
-	STA LASTLINE+1
-	STA CURR+1
+erase	LDA texstart
+	STA tex
+	STA toplin
+	STA lastline
+	STA curr
+	LDA texstart+1
+	STA tex+1
+	STA toplin+1
+	STA lastline+1
+	STA curr+1
 	SEC
-	LDA TEXEND+1
-	SBC TEXSTART+1
+	LDA texend+1
+	SBC texstart+1
 	TAX
 	LDA #32
 CLRLOOP	LDY #255
-	DEC TEX+1
-	STA (TEX),Y
+	DEC tex+1
+	STA (tex),Y
 	INY
-	INC TEX+1
-CLR2	STA (TEX),Y
+	INC tex+1
+CLR2	STA (tex),Y
 	INY
 	BNE CLR2
-	INC TEX+1
+	INC tex+1
 	DEX
 	BNE CLR2
-	STA (TEX),Y
+	STA (tex),Y
 	RTS
 
 ; PRMSG is used anytime we need to
@@ -370,80 +369,83 @@ CLR2	STA (TEX),Y
 ; end with a zero byte. The routine does
 ; not add a carriage return.
 
-PRMSG	STA TEMP
-	STY TEMP+1
+PRMSG	STA temp
+	STY temp+1
 	LDY #0
-PRLOOP	LDA (TEMP),Y
+PRLOOP	LDA (temp),Y
 	BEQ PREXIT
-	JSR CHROUT
+	JSR chrout
 	INY
 	BNE PRLOOP
 PREXIT	RTS
-GETAKEY	JSR GETIN
-	BEQ GETAKEY
+getakey	JSR getin
+	BEQ getakey
 	RTS
 ;The initialization routine sets up the
 ;memory map, clears out certain flags, 
 ;and enables the raster interrupt
 
 INIT	LDA #147
-	JSR CHROUT
+	JSR chrout
 	LDA #54
-	STA MAP
+	STA map
 	LDA #0
 	STA INSMODE
-	STA TEXSTART
-	STA TEXEND
-	STA TEXBUF
-	STA BUFEND
-	STA HUNTLEN
-	STA REPLEN
+	STA texstart
+	STA texend
+	STA texbuf
+	STA bufend
+	STA huntlen
+	STA replen
 	LDA #>END ;
 	CLC
 	ADC #1
-	STA TEXSTART+1
+	STA texstart+1
 	LDA #$CF
-	STA TEXEND+1
+	STA texend+1
 	LDA #$D0
-	STA TEXBUF+1
+	STA texbuf+1
 	LDA #$FF
-	STA BUFEND+1
-	STA FPOS+1
-	JMP IOINIT
-INIT2	JSR KILLBUFF
+	STA bufend+1
+	STA fpos+1
+	JMP ioinit
+INIT2	JSR killbuff
 	LDA #128
 	STA 650 ;TODO
 	STA $9D ;TODO
-	JSR HIGHLIGHT
-	COPY16 MYNMI,$0318
-	COPY16 TEXSTART,CURR
-	JSR SYSMSG
+	JSR highlight
+	LDA #<mynmi
+	sta $0318
+	LDA #>mynmi
+	sta $0319
+	copy16 texstart,curr
+	JSR sysmsg
 	DO_PRMSG MSG2
-	INC MSGFLG
+	INC msgflg
 	RTS
 
 ;The NOPS are here because I replaced
-;a three-byte JSR CHECK with RTS.
+;a three-byte JSR check with RTS.
 ;I did not want the size of the code
 ;or the location of any routines to change.
-;JSR CHECK was originally inserted to fix
+;JSR check was originally inserted to fix
 ;a bug, but caused a bug itself.
 
 	NOP
 	NOP
 
-;SYSMSG displays "SpeedScript" and the version.
-SYSMSG	JSR TOPCLR
+;sysmsg displays "SpeedScript" and the version.
+sysmsg	JSR topclr
 	DO_PRMSG MSG1
 	LDA #0
-	STA MSGFLG
+	STA msgflg
 	RTS
 
 ; This routine traps the RESTORE key. It reproduces
 ; some of the ROM code so that RS-232 is still supported
 ; (although SpeedScript does not directly support
 ; RS-232 output).
-MYNMI	PHA
+mynmi	PHA
 	TXA
 	PHA
 	TYA
@@ -455,94 +457,94 @@ MYNMI	PHA
 	JMP $FE72
 ;If RESTORE is pressed, we have to fix the 
 ;cursor in case it was lit.
-NOTRS	LDA BLINKFLAG
+NOTRS	LDA blinkflag
 	BEQ NOTCURSOR
 	LDA UNDERCURS
 	LDY #0
-	STA (CURR),Y
+	STA (curr),Y
 NOTCURSOR	LDA #2
-	STA WINDCOLR
-	JSR CLRCHN
-	JSR TOPCLR
-	DO_PRMSG XITMSG
+	STA windcolr
+	JSR clrchn
+	JSR topclr
+	DO_PRMSG xitmsg
 	JSR YORN
 	BNE REBOOT
-	JSR DELITE
+	JSR delite
 	SEI
 	LDA #$7F
 	JMP $FE66
-REBOOT	JSR DELITE
+REBOOT	JSR delite
 	LDX #$FA
 	TXS
 	JSR INIT2
-	JMP MAIN
+	JMP main
 ;
-;TOPCLR keeps the command line clean.
+;topclr keeps the command line clean.
 ;It is called before most messages.
 ;It's like a one-line clear-screen.
-TOPCLR	LDX #COLUMNS-1
-	LDA #32 ;SPACE
-	STA SCRMEM,X
+topclr	LDX #COLUMNS-1
+	LDA #32 ;space
+toploop	STA SCRMEM,X
 	DEX
-	BPL TOPLOOP
+	BPL toploop
 	LDA #19 ;HOME
-	JMP CHROUT
+	JMP chrout
 ;Converts PETSCII to screen codes.
-ASTOIN	PHA
+astoin	PHA
 	AND #128
 	LSR
-	STA TEMP
+	STA temp
 	PLA
 	AND #63
-	ORA TEMP
+	ORA temp
 	RTS
 ;The MAIN loop blinks the cursor,
 ;checks for keystrokes, converts
 ;them from ASCII to screen codes,
 ;puts them in text at the CURRent position, and increments
-;the CURRent position and LASTLINE. It also checks for special
+;the CURRent position and lastline. It also checks for special
 ;cases like the back-arrow and the return key and passes control
 ;characters to the CONTROL routine. SHIFTed spaces are turned into
 ;unSHIFTed ones. The INSMODE flag is checked to see if we should
 ;insert a space before a character.
 
-MAIN LDY #0
-	STY BLINKFLAG
-	LDA (CURR),Y
+main LDY #0
+	STY blinkflag
+	LDA (curr),Y
 	STA UNDERCURS
-MAIN2	LDY #0
-	LDA (CURR),Y
+main2	LDY #0
+	LDA (curr),Y
 	EOR #$80
-	STA (CURR),Y
-	LDA BLINKFLAG
+	STA (curr),Y
+	LDA blinkflag
 	EOR #1
-	STA BLINKFLAG
-	JSR REFRESH
-WAIT	JSR GETIN
+	STA blinkflag
+	JSR refresh
+WAIT	JSR getin
 	BNE KEYPRESS
 	LDA 162 ;TODO: label
 	AND #16 
 	BEQ WAIT
 	LDA #0
 	STA 162
-	JMP MAIN2
+	JMP main2
 KEYPRESS	TAX
 	LDY #0
 	LDA UNDERCURS
-	STA (CURR),Y
-	STY BLINKFLAG
+	STA (curr),Y
+	STY blinkflag
 	CPX #95
 	BNE NOTBKS
-	JSR LEFT
+	JSR left
 	LDA #32
 	LDY #0
-	STA (CURR),Y
-	JMP MAIN
-NOTBKS	LDA MSGFLG
+	STA (curr),Y
+	JMP main
+NOTBKS	LDA msgflg
 	BEQ NOMSG
 	TXA
 	PHA
-	JSR SYSMSG
+	JSR sysmsg
 	PLA
 	TAX
 NOMSG	TXA
@@ -551,40 +553,40 @@ NOMSG	TXA
 	BCC CONTROL
 	CPX #160
 	BNE NESHIFT
-	LDX #SPACE
+	LDX #space
 NESHIFT	TXA
 	PHA
 	LDY #0
-	LDA (CURR),Y
-	CMP #RETCHAR
+	LDA (curr),Y
+	CMP #retchar
 	BEQ DOINS
 	LDA INSMODE
 	BEQ NOTINST
-DOINS	JSR INSCHAR
+DOINS	JSR inschar
 NOTINST	PLA
-	JSR ASTOIN
+	JSR astoin
 PUTCHR	LDY #0
-	STA (CURR),Y
-	JSR REFRESH
+	STA (curr),Y
+	JSR refresh
 	SEC
-	LDA CURR
-	SBC LASTLINE
-	STA TEMP
-	LDA CURR+1
-	SBC LASTLINE+1
-	ORA TEMP
+	LDA curr
+	SBC lastline
+	STA temp
+	LDA curr+1
+	SBC lastline+1
+	ORA temp
 	BCC INKURR
-	LDA CURR
+	LDA curr
 	ADC #0
-	STA LASTLINE
-	LDA CURR+1
+	STA lastline
+	LDA curr+1
 	ADC #0
-	STA LASTLINE+1
-INKURR	INC CURR
+	STA lastline+1
+INKURR	INC curr
 	BNE NOINC2
-	INC CURR+1
-NOINC2	JSR CHECK
-	JMP MAIN
+	INC curr+1
+NOINC2	JSR check
+	JMP main
 ;CONTROl looks up a keyboard command in the list
 ;of control codes at CTBL. The first byte of
 ;CTBL is the actual number of commands. Once the
@@ -603,14 +605,14 @@ SRCH	CMP CTBL,X
 	BEQ FOUND
 	DEX
 	BNE SRCH
-	JMP MAIN
+	JMP main
 FOUND	DEX
 	TXA
 	ASL
 	TAX
-	LDA #>MAIN-1
+	LDA #>main-1
 	PHA
-	LDA #>MAIN-1
+	LDA #>main-1
 	PHA
 	LDA VECT+1,X
 	PHA
@@ -623,186 +625,190 @@ CTBL 	BYTE 39
 	BYTE 22,145,17,159,18,24,26,16
 	BYTE 28,30,6,1,11,8,31,3,131
 	BYTE 10,141,7
-VECT	WORD RIGHT-1,LEFT-1,WLEFT-1,WRIGHT-1,BORDER-1,LETTERS-1
-	WORD SLEFT-1,SRIGHT-1,DELCHAR-1,INSCHAR-1,DELETE-1
-	WORD HOME-1,INSTGL-1,CLEAR-1,PARIGHT-1,PARLEFT-1
-	WORD ERAS-1,TLOAD-1,TSAVE-1,VERIFY-1
-	WORD SLEFT-1,SRIGHT-1,CATALOG-1,INSBUFFER-1,SWITCH-1
-	WORD ENDTEX-1,PRINT-1,FORMAT-1,DCMND-1
-	WORD DELIN-1,ALPHA-1,KILLBUFF-1,HUNT-1,FREEMEM-1,TAB-1
-	WORD LOTTASPACES-1,REPSTART-1,ENDPAR-1,SANDR-1
+VECT	WORD right-1,left-1,wleft-1,wright-1,BORDER-1,LETTERS-1
+	WORD sleft-1,sright-1,DELCHAR-1,inschar-1,DELETE-1
+	WORD HOME-1,instgl-1,CLEAR-1,paright-1,parleft-1
+	WORD ERAS-1,TLOAD-1,TSAVE-1,verify-1
+	WORD sleft-1,sright-1,catalog-1,insbuffer-1,switch-1
+	WORD endtex-1,print-1,FORMAT-1,dcmnd-1
+	WORD DELIN-1,alpha-1,killbuff-1,HUNT-1,FREEMEM-1,tab-1
+	WORD lottaspaces-1,repstart-1,endpar-1,SANDR-1
 ;The check routine (yadda yadda page 102)
-CHECK	JSR CHECK2
+check	JSR check2
 	SEC
-	LDA CURR
-	SBC TOPLIN
-	LDA CURR+1
-	SBC TOPLIN+1
+	LDA curr
+	SBC toplin
+	LDA curr+1
+	SBC toplin+1
 	BCS OK1
 	SEC
-	LDA TOPLIN
-	SBC TEXSTART
-	STA TEMP
-	LDA TOPLIN+1
-	SBC TEXSTART+1
-	ORA TEMP
+	LDA toplin
+	SBC texstart
+	STA temp
+	LDA toplin+1
+	SBC texstart+1
+	ORA temp
 	BEQ OK1
-	LDA CURR
-	STA TOPLIN
-	LDA CURR+1
-	STA TOPLIN+1
-	JSR REFRESH
+	LDA curr
+	STA toplin
+	LDA curr+1
+	STA toplin+1
+	JSR refresh
 OK1	SEC
 	LDA BOTSCR
-	SBC CURR
-	STA TEX
+	SBC curr
+	STA tex
 	LDA BOTSCR+1
-	SBC CURR+1
-	STA TEX+1
-	ORA TEX
+	SBC curr+1
+	STA tex+1
+	ORA tex
 	BEQ EQA
 	BCS OK2
 EQA	CLC
-	LDA TOPLIN
+	LDA toplin
 	ADC LENTABLE
-	STA TOPLIN
-	LDA TOPLIN+1
+	STA toplin
+	LDA toplin+1
 	ADC #0
-	STA TOPLIN+1
-REF	JSR REFRESH
+	STA toplin+1
+REF	JSR refresh
 	JMP OK1
 OK2	RTS
 
-CHECK2	SEC
-	LDA LASTLINE
-	SBC TEXEND
-	STA TEMP
-	LDA LASTLINE+1
-	SBC TEXEND+1
-	ORA TEMP
+check2	SEC
+	LDA lastline
+	SBC texend
+	STA temp
+	LDA lastline+1
+	SBC texend+1
+	ORA temp
 	BCC CK3
-	LDA TEXEND
-	STA LASTLINE
-	LDA TEXEND+1
-	STA LASTLINE+1
+	LDA texend
+	STA lastline
+	LDA texend+1
+	STA lastline+1
 CK3	SEC
-	LDA CURR
-	SBC TEXSTART
-	STA TEMP
-	LDA CURR+1
-	SBC TEXSTART+1
-	ORA TEMP
+	LDA curr
+	SBC texstart
+	STA temp
+	LDA curr+1
+	SBC texstart+1
+	ORA temp
 	BCS INRANGE
-	LDA TEXSTART
-	STA CURR
-	LDA TEXSTART+1
-	STA CURR+1
+	LDA texstart
+	STA curr
+	LDA texstart+1
+	STA curr+1
 	RTS
 INRANGE	SEC
-	LDA CURR
-	SBC LASTLINE
-	STA TEMP
-	LDA CURR+1
-	SBC LASTLINE+1
-	ORA TEMP
+	LDA curr
+	SBC lastline
+	STA temp
+	LDA curr+1
+	SBC lastline+1
+	ORA temp
 	BCS OUTRANGE
 	RTS
 OUTRANGE
-	LDA LASTLINE
-	STA CURR
-	LDA LASTLINE+1
-	STA CURR+1
+	LDA lastline
+	STA curr
+	LDA lastline+1
+	STA curr+1
 	RTS
 ; move cursor right.
-RIGHT	INC CURR
+right	INC curr
 	BNE NOINCR
-	INC CURR+1
-NOINCR	JMP CHECK
+	INC curr+1
+NOINCR	JMP check
 
 ; Cursor left.
-LEFT	LDA CURR
+left	LDA curr
 	BNE NODEC
-	DEC CURR+1
-NODEC	DEC CURR
-	JMP CHECK
+	DEC curr+1
+NODEC	DEC curr
+	JMP check
 ; Word left. We look backward for a space.
-WLEFT
-	COPY16 CURR,TEX
-	DEC TEX+1
+wleft
+	copy16 curr,tex
+	DEC tex+1
 	LDY #$FF
-STRIP	LDA (TEX),Y
-	CMP #SPACE
+STRIP	LDA (tex),Y
+	CMP #space
 	BEQ STRLOOP
-	CMP #RETCHAR
+	CMP #retchar
 	BNE WLOOP
 STRLOOP	DEY
 	BNE STRIP 
-WLOOP	LDA (TEX),Y
-	CMP #SPACE
-	BEQ WROUT
-	CMP #RETCHAR
-	BEQ WROUT
+WLOOP	LDA (tex),Y
+	CMP #space
+	BEQ wrout
+	CMP #retchar
+	BEQ wrout
 	DEY
 	BNE WLOOP
 	RTS
-WROUT
+wrout
 	SEC
 	TYA
-	ADC TEX
-	STA CURR
-	LDA TEX+1
+	ADC tex
+	STA curr
+	LDA tex+1
 	ADC #0
-	STA CURR+1
-	JMP CHECK
+	STA curr+1
+	JMP check
 ;Word right. We scan forward
 ;for a space. OIDS is not a meaningful label.
-WRIGHT	LDY #0
-RLOOP	LDA (CURR),Y
-	CMP #SPACE
+wright	LDY #0
+RLOOP	LDA (curr),Y
+	CMP #space
 	BEQ ROUT
-	CMP #RETCHAR
+	CMP #retchar
 	BEQ ROUT 
 	INY
 	BNE RLOOP
 	RTS
 ROUT	INY
 	BNE OIDS
-	INC CURR+1
-	LDA CURR+1
-	CMP LASTLINE+1
+	INC curr+1
+	LDA curr+1
+	CMP lastline+1
 	BCC OIDS
-	BNE LASTWORD
-OIDS	LDA (CURR),Y
-	CMP #SPACE
+	BNE lastword
+OIDS	LDA (curr),Y
+	CMP #space
 	BEQ ROUT
-	CMP #RETCHAR
+	CMP #retchar
 	BEQ ROUT
-; add Y to CURR to move the cursor
-; CHECK prevents illegal cursor movement.
+; add Y to curr to move the cursor
+; check prevents illegal cursor movement.
 ; LASTWORD is called if the end
 ; of the word cannot be found within 255 characters.
-ADYCURR	CLC
+adycurr	CLC
 	TYA
-	ADC CURR
-	STA CURR
-	LDA CURR+1
+	ADC curr
+	STA curr
+	LDA curr+1
 	ADC #0
-	STA CURR+1
-WRTN 	JMP CHECK
+	STA curr+1
+wrtn 	JMP check
 
-;ENDTEX is tricky,  (p103)
+lastword
+	copy16 lastline,curr
+	jmp check
 
-ENDTEX	LDA #0
-	STA TOPLIN
-	LDA LASTLINE+1
+;endtex is tricky,  (p103)
+
+endtex	LDA #0
+	STA toplin
+	LDA lastline+1
 	SEC
 	SBC #4
-	CMP TEXSTART+1
+	CMP texstart+1
 	BCS SAFE
-	LDA TEXSTART+1
-SAFE	STA TOPLIN+1
-	JSR REFRESH
-	JMP LASTWORD
+	LDA texstart+1
+SAFE	STA toplin+1
+	JSR refresh
+	JMP lastword
 
 	MAC INC15
 	INC {1}
@@ -814,10 +820,10 @@ SAFE	STA TOPLIN+1
 ;SCRCOL into 53281 when appropriate. The AND
 ;keeps SCRCOL within a legal range (I know that's
 ;not really necessary)
-BORDER	INC15 SCRCOL
+BORDER	INC15 scrcol
 	RTS
-SCRCOL	BYTE 12 ; gray
-;TEXCOLR (text color) is used in the REFRESH routine
+scrcol	BYTE 12 ; gray
+;TEXCOLR (text color) is used in the refresh routine
 ;and stored into color memory. Both SCRCOL and TEXCOLR
 ;are stored within the SpeedScript code so that after
 ;they're changed, you can resave SpeedScript and it
@@ -838,52 +844,52 @@ TEXCOLR	BYTE 11 ;dark gray
 	BEQ {1}
 	ENDM
 	
-SLEFT
-	COPY16 CURR,TEX
-	DEC TEX+1
+sleft
+	copy16 curr,tex
+	DEC tex+1
 	LDY #$FF
-PMANY	LDA (TEX),Y
+PMANY	LDA (tex),Y
 	B_IF_PUNCT PSRCH
-	CMP #RETCHAR
-	BNE PSLOOP
+	CMP #retchar
+	BNE psloop
 PSRCH	DEY
 	BNE PMANY
 	RTS
-PSLOOP	LDA (TEX),Y
+psloop	LDA (tex),Y
 	B_IF_PUNCT PUNCT
-	CMP #RETCHAR
+	CMP #retchar
 	BEQ PUNCT
 	DEY
-	BNE PSLOOP
-	DEC TEX+1
-	LDA TEX+1
-	CMP TEXSTART
-	BCS PSLOOP
-	JMP FIRSTWORD
-PUNCT	STY TEMP
-	DEC TEMP
+	BNE psloop
+	DEC tex+1
+	LDA tex+1
+	CMP texstart
+	BCS psloop
+	JMP firstword
+PUNCT	STY temp
+	DEC temp
 SKIPSPC	INY
 	BEQ REPEAT
-	LDA (TEX),y
-	CMP #SPACE
+	LDA (tex),y
+	CMP #space
 	BEQ SKIPSPC
 	dey
 	jmp wrout
 REPEAT	ldy temp
 	jmp psloop
-firstword	copy16 TEXSTART,CURR
-	jmp CHECK
+firstword	copy16 texstart,curr
+	jmp check
 ; Sentence right. We look for ending punctuation,
 ; then skip forward until we run out of spaces.
-SRIGHT	LDY #0
-	LDA (CURR),Y
-	B_IF_PUNCT PUNCT2
-	CMP #RETCHAR
-	BEQ PUNCT2
+sright	LDY #0
+srlp	LDA (curr),Y
+	B_IF_PUNCT punct2
+	CMP #retchar
+	BEQ punct2
 	INY
-	BNE SRLP
-	inc CURR+1
-	lda CURR+1
+	BNE srlp
+	inc curr+1
+	lda curr+1
 	cmp lastline+1
 	beq srlp
 srexit	jmp lastword
@@ -909,11 +915,11 @@ nofixcurr	lda (curr),y
 ; the end of the buffer to the
 ; start of the buffer. No text is
 ; actually erased.
-KILLBUFF	COPY16 TEXBUF,TPTR
-	JSR TOPCLR
-	DO_PRMSG KILLMSG
+killbuff	copy16 texbuf,tptr
+	JSR topclr
+	DO_PRMSG killmsg
 	LDA #1
-	STA MSGFLG
+	STA msgflg
 	RTS
 
 ; This is the second level of the
@@ -931,16 +937,16 @@ KILLBUFF	COPY16 TEXBUF,TPTR
 	ora temp
 	ENDM
 
-DEL1	SBC_ORATEMP CURR,TEXSTART
+del1	SBC_ORATEMP curr,texstart
 	BNE DEL1A
 DELABORT	PLA
 	PLA
 	RTS
-DEL1A	COPY16 CURR,FROML
+DEL1A	copy16 curr,froml
 	RTS
-DEL2	SEC
-	LDA CURR
-	STA DESTL
+del2	SEC
+	LDA curr
+	STA destl
 	eor #$ff
 	adc froml
 	sta goblen
@@ -948,8 +954,8 @@ DEL2	SEC
 	sta desth
 	eor #$ff
 	adc fromh
-	sta gorlen+1
-DELC	copy16 froml,fromsav
+	sta goblen+1
+delc	copy16 froml,fromsav
 	lda destl
 	sta destsav
 	sta froml
@@ -957,7 +963,7 @@ DELC	copy16 froml,fromsav
 	sta destsav+1
 	sta fromh
 	sec
-	lda gorlen+1
+	lda goblen+1
 	adc tptr+1
 	cmp bufend+1
 	bcc gosav
@@ -968,23 +974,23 @@ DELC	copy16 froml,fromsav
 	sta 198 ; TODO label
 	rts
 
-GOSAV	copy16 tptr,destl
-	lda gorlen
+gosav	copy16 tptr,destl
+	lda goblen
 	sta llen
 	clc 
 	adc tptr
 	sta tptr
-	lda gorlen+1
+	lda goblen+1
 	sta hlen
 	adc tptr+1
 	sta tptr+1
 	lda #0
 	sta $D01A ;TODO: label
 	lda #52
-	sta MAP
+	sta map
 	jsr umove
 	lda #54
-	sta MAP
+	sta map
 	lda #1
 	sta $D01A
 
@@ -1028,38 +1034,38 @@ DELIN	LDA 653 ;TODO: label
 	BNE DODELIN
 	JMP EATSPACE
 DODELIN
-	JSR RIGHT
-	JSR DEL1
-	JSR LEFT
-	JSR DEL2
-	JMP FIXTP
+	JSR right
+	JSR del1
+	JSR left
+	JSR del2
+	JMP fixtp
 
 ;Called by CTRL-D.  (etc)
-DELETE	JSR KILLBUFF
+DELETE	JSR killbuff
 	LDA #2
-	STA WINDCOLR
-	JSR TOPCLR
-	DO_PRMSG DELMSG
-	JSR GETAKEY
+	STA windcolr
+	JSR topclr
+	DO_PRMSG delmsg
+	JSR getakey
 	PHA
-	JSR SYSMSG
+	JSR sysmsg
 	PLA
 	AND #191
 	CMP #23 ; "W"
 	BNE NOTWORD
-DELWORD	JSR DEL1
-	JSR WLEFT
-	JMP DEL2
+DELWORD	JSR del1
+	JSR wleft
+	JMP del2
 NOTWORD	CMP #19 ; "S"
 	BNE NOTSENT
-DELSENT	JSR DEL1
-	JSR SLEFT
-	JMP DEL2
+DELSENT	JSR del1
+	JSR sleft
+	JMP del2
 NOTSENT	CMP #16 ; "P"
 	BNE NOTPAR
-	JSR DEL1
-	JSR PARLEFT
-	JMP DEL2
+	JSR del1
+	JSR parleft
+	JMP del2
 NOTPAR	RTS
 
 	
@@ -1077,7 +1083,7 @@ tophome	copy16 texstart,curr
 ; cursor and following nonspace text.
 ; Sometimes inventing labels can be fun.
 EATSPACE
-	COPY163 CURR,TEX,DESTL
+	COPY163 curr,tex,destl
 	ldy #0
 spcsrch	lda (tex),y
 	cmp #space
@@ -1118,10 +1124,10 @@ outspace
 	
 ;Inserts 255 spaces. Notice how it and other
 ;insert routines use TAB2.
-LOTTASPACES
+lottaspaces
 	LDA #255
-	STA INSLEN
-	JMP TAB2
+	STA inslen
+	JMP tab2
 	
 tab	lda #5
 	sta inslen
@@ -1146,17 +1152,17 @@ fillsp	sta (curr),y
 ;two spaces, fills them with return marks,
 ;then calls tAB for a margin indent. Not
 ;much code for a useful routine.
-ENDPAR	JSR INSCHAR
-	JSR INSCHAR
-	LDA #RETCHAR
+endpar	JSR inschar
+	JSR inschar
+	LDA #retchar
 	LDY #0
-	STA (CURR),Y
+	STA (curr),Y
 	INY
-	STA (CURR),Y
-	JSR REFRESH
-	JSR RIGHT
-	JSR RIGHT
-	JMP TAB
+	STA (curr),Y
+	JSR refresh
+	JSR right
+	JSR right
+	JMP tab
 ;insert a single space:
 inschar	LDA #1
 	sta inslen
@@ -1168,8 +1174,8 @@ inschar	LDA #1
 	sta (curr),y
 	jmp check
 ;A general routine to insert as many
-;spaces as are specified by INSLEN.
-INSBLOCK
+;spaces as are specified by inslen.
+insblock
 	clc
 	lda lastline
 	adc inslen ; discarded?
@@ -1192,18 +1198,18 @@ okins	clc
 	sub163 lastline,froml,llen
 	jsr dmove
 	add16 lastline,inslen
-	rts
+inout	rts
 ;toggle insert mode. The INSMODE
 ;flag doubles as the color of the
 ;command line.
-INSTGL	LDA INSMODE
+instgl	LDA INSMODE
 	EOR #14     ; TODO: constant
 	STA INSMODE
 	RTS
 ;Another example of modular code.
-YORN	DO_PRMSG YMSG
+YORN	DO_PRMSG ynmsg
 YORNKEY JSR $FF9F  ; TODO: constant
-	JSR GETIN
+	JSR getin
 	BEQ YORNKEY
 	CMP #147  ;user is spamming CLR/HOME
 	BEQ YORNKEY ;ignore it
@@ -1212,20 +1218,20 @@ YORNKEY JSR $FF9F  ; TODO: constant
 	RTS
 ;Erase all text. (p108)
 CLEAR	LDA #2  ;red!
-	STA WINDCOLR 
-	JSR TOPCLR
-	DO_PRMSG CLRMSG
+	STA windcolr 
+	JSR topclr
+	DO_PRMSG clrmsg
 	JSR YORN
 	BEQ DOIT
-	JMP SYSMSG
+	JMP sysmsg
 DOIT LDX #$FA
 	TXS
-	JSR ERASE
+	JSR erase
 	JSR INIT2
-	JMP MAIN
+	JMP main
 ;Paragraph right.
-PARIGHT LDY #0
-PARLP 	lda (CURR),Y
+paright LDY #0
+parlp 	lda (curr),Y
 	cmp #retchar
 	beq retfound
 	iny
@@ -1241,7 +1247,7 @@ retfound iny
 	inc curr+1
 goady	jmp adycurr
 ;Paragraph left.
-PARLEFT	COPY16 CURR,TEX
+parleft	copy16 curr,tex
 	dec tex+1
 	ldy #$ff
 parloop	lda (tex),y
@@ -1273,32 +1279,32 @@ retf2	sec
 	sbc #0
 	sta tex+1
 	jmp parcont
-tectocurr
+textocurr
 	copy16 tex,curr
 	jmp check
 ;tis enables the raster interrupt. (p109)
-HIGHLIGHT
+highlight
 	SEI
 	LDA #0
 	STA $DC0E
 	LDA #27
 	STA $D011
-	COPY16 IRQ,$0314
+	copy16 IRQ,$0314
 	LDA #1
 	STA $D01A
 	STA $D012
 	CLI
 	RTS
 IRQ	LDA #58
-	LDY WINDCOLR
+	LDY windcolr
 	CMP $D012
 	BNE MID
 	LDA #1
-	LDY SCRCOL
+	LDY scrcol
 MID	STY $D021
 	STA $D012
 SKIP	CMP #1
-	BEQ DEFALT
+	BEQ defalt
 	LDA #1
 	STA $D019
 	JMP $FEBC
@@ -1312,36 +1318,36 @@ defalt	LDA #1
 ERAS	LDA 653
 	AND #1
 	BNE ERAS1
-	JSR KILLBUFF
-ERAS1	JSR TOPCLR
-	DO_PRMSG ERASMSG
-ERASAGAIN
-	LDY #0
-	LDA (CURR),Y
+	JSR killbuff
+ERAS1	JSR topclr
+	DO_PRMSG erasmsg
+erasagain
+	LDA #0
+	LDA (curr),Y
 	EOR #$80
-	STA (CURR),Y
-	JSR REFRESH
+	STA (curr),Y
+	JSR refresh
 	LDY #0
-	LDA (CURR),Y
+	LDA (curr),Y
 	EOR #$80
-	STA (CURR),Y
+	STA (curr),Y
 	lda #2
 	sta windcolr
 	jsr getakey
 	ora #64
 	cmp #'W
-	bne NOWORD
-erasword jsr ERA1
+	bne noword
+erasword jsr era1
 	jsr wright
 	jmp era2
 noword	cmp #'S
-	bne UNSENT
-erasent jsr ERA1
+	bne unsent
+erasent jsr era1
 	jsr sright
 	jmp era2
-	cmp #'P
-	bne NOPAR
-	jsr ERA1
+unsent	cmp #'P
+	bne nopar
+	jsr era1
 	jsr paright
 	jmp era2
 nopar	jsr check
@@ -1358,42 +1364,42 @@ era2	sec
 	sbc savcurr+1
 	sta goblen+1
 	jsr delc
-	copy16 savcurr,cur
+	copy16 savcurr,curr
 	jsr refresh
 	jmp erasagain
 ;the INPUT routine is used to get responses
 ;from the command line.
-INPUT	LDA #39
+input	LDA #39
 	SBC 211
-	STA LIMIT
-INP1	LDY #0
-	LDA #153
-	JSR CHROUT
+	STA limit
+inp1	LDY #0
+cursin	LDA #153
+	JSR chrout
 	LDA #18 ; Ctrl-R
-	JSR CHROUT
+	JSR chrout
 	LDA #space
-	JSR CHROUT
+	JSR chrout
 	LDA #157
-	JSR CHROUT
+	JSR chrout
 	sty inlen
 	jsr getakey
 	ldy inlen
 	sta temp
 	lda #146
-	jsr CHROUT 
+	jsr chrout 
 	LDA #space
-	JSR CHROUT
+	JSR chrout
 	LDA #157
-	JSR CHROUT
+	JSR chrout
 	LDA #155
-	JSR CHROUT
-	LDA TEMP
+	JSR chrout
+	LDA temp
 	CMP #13
-	BEQ INEXIT
+	BEQ inexit
 	CMP #20 ;petscii DEL key
-	BNE NOBACK
+	BNE noback
 	DEY
-	BPL NOTZERO
+	BPL notzero
 	iny
 	jmp cursin
 notzero	lda #157
@@ -1436,48 +1442,48 @@ TSAVE
 ; to use LDA $90 than JSR READST.
 	lDA $90
 	AND #191
-	BNE ERROR
-	JMP FINE
+	BNE error
+	JMP fine
 ;The ERROR message routine. May this
 ;routine never be called when you use
 ;SpeedScript, but that's too much to 
 ;ask for.
-ERROR	BEQ STOPPED
-	LDA DVN
+error	BEQ STOPPED
+	LDA dvn
 	CMP #8
 	BCC TAPERR
-	JSR READERR
-	JMP EXIT
-TAPERR	LDA DVN
+	JSR readerr
+	JMP erxit
+TAPERR	LDA dvn
 	CMP #1
 	BEQ TAPERR
-	JSR TOPCLR
+	JSR topclr
 	DO_PRMSG FNF
-ERXIT	JSR HIGHLIGHT
+erxit	JSR highlight
 	LDA #1
-	STA MSGFLG
+	STA msgflg
 	RTS
-STOPPED	JSR TOPCLR
-	DO_PRMSG BRMSG
-	JMP ERXIT
-DVN	BYTE 0
+STOPPED	JSR topclr
+	DO_PRMSG brmsg
+	JMP erxit
+dvn	BYTE 0
 
 ;TOPEN
-TOPEN	JSR INPUT
+topen	JSR input
 	BEQ OPABORT
-OP2	DO_PRMSG TDMSG
-	JSR GETAKEY
+OP2	DO_PRMSG tdmsg
+	JSR getakey
 	LDX #8
 	CMP #'D
 	BEQ OPCONT
 	LDX #1
 	CMP #'T
 	BEQ OPCONT
-OPABORT	JSR SYSMSG
+OPABORT	JSR sysmsg
 	PLA
 	PLA
 	RTS
-OPCONT	STX DVN
+OPCONT	STX dvn
 	LDA #1
 	LDY #0
 	jsr setlfs
@@ -1499,7 +1505,7 @@ addzero lda #'0
 	sta filename
 	lda #':
 	sta filename+1
-COPY1	lda inbuff,y
+copy1	lda inbuff,y
 	sta filename+2,y
 	iny
 	cpy inlen
@@ -1517,27 +1523,27 @@ setname sty fnlen
 	lda fnlen
 	ldx #<filename
 	ldx #>filename
-	jsr SETNAM
+	jsr setnam
 	lda #13 ;cr
 	jsr chrout
 	jmp delite
 ; called by CTRL-\ to enter a format code.
 ; It checks insert mode and inserts if necessary.
-FORMAT	JSR TOPCLR
-	DO_PRMSG FORMSG
-	JSR GETAKEY
-	JSR ASTOIN
+FORMAT	JSR topclr
+	DO_PRMSG formsg
+	JSR getakey
+	JSR astoin
 	ORA #$80
 	PHA
 	LDA INSMODE
 	BEQ NOINS
-	JSR INSCHAR
-NOINS	JSR SYSMSG
+	JSR inschar
+NOINS	JSR sysmsg
 	PLA
 	JMP PUTCHR
 ;p112
 TLOAD
-	SBC_ORATEMP CURR,TEXSTART
+	SBC_ORATEMP curr,texstart
 	BEQ load2
 	lda #5
 	sta windcolr
@@ -1570,8 +1576,8 @@ verify	top_prmsg vermsg
 	beq fine
 	top_prmsg vererr
 	jmp erxit
-;DELITE turns off the raster interrupt.
-DELITE	SEI
+;delite turns off the raster interrupt.
+delite	SEI
 	LDA #0
 	STA $D01A
 	STA 53280
@@ -1689,7 +1695,7 @@ digit	sec
 	inc tex+1
 	jmp digit
 nonum	sed
-	lda bcd
+dechex	lda bcd
 	ora bcd+1
 	beq donenum
 	sec
@@ -1801,9 +1807,9 @@ isk2	sta temp
 	
 ;oh boy printer stuff p114
 
-DEFTAB BYTE 5,75,66,5,58,1,1,1,0,1,0,80
+deftab BYTE 5,75,66,5,58,1,1,1,0,1,0,80
 	
-PRCODES BYTE 27,14,15,18
+prcodes BYTE 27,14,15,18
 
 pchrout	sta pcr
 	txa
@@ -1897,14 +1903,14 @@ prcont	lda devno
 	tay
 	cmp #4
 	bcc overques
-	cmp
+	cmp #8
 	bcs overques
 notd2	top_prmsg sadrmsg
 	jsr getakey
 	sec
 	sbc #'0
 	tay
-	bpl OVERQUES
+	bpl overques
 	jmp pbort
 overques	lda #1
 	ldx devno
@@ -2142,7 +2148,7 @@ special	sta savchar
 srchsp	cmp sptab,x
 	beq fsp
 	dex
-	dne srchsp
+	bne srchsp
 	dec pos
 	jmp define
 fsp	dex
@@ -2174,7 +2180,8 @@ spcexit	lda (tex),y
 noad	sty ysave
 	rts
 sptab	byte 18
-	text "WALRTBSNHF@P?XMIGJ" 
+	;text "WALRTBSNHF@P?XMIGJ" 
+	hex 57414c525442534e484640503f584d49474a
 
 spvect	word pw-1,as-1,lm-1,rm-1,tp-1
 	word bt-1,sp-1,nx-1,hd-1,ft-1
@@ -2184,71 +2191,71 @@ spvect	word pw-1,as-1,lm-1,rm-1,tp-1
 
 ;m Margin release.
 ; INY is used to skip over the format character.
-MRELEASE
+mrelease
 	INY
 	LDA #0
-	STA NOMARG
-	JMP SPCEXIT
+	STA nomarg
+	JMP spcexit
 ;x Columns across
-ACROSS
+across
 	INY
-	JSR ASCHEX
-	STA PAGEWIDTH
-	JMP SPCEXIT
+	JSR aschex
+	STA pagewidth
+	JMP spcexit
 
 	mac prcode
-	JSR ASCHEX
+	JSR aschex
 	STA {1}
 	endm
 	mac prcode16
 	prcode {1}
-	LDA HEX+1
+	LDA hex+1
 	STA {1}
 	endm
 ;? Print starting at specified page
-SPAGE
+spage
 	INY
 	prcode16 startnum
-	JMP SPCEXIT
+	JMP spcexit
 ;@ set starting page default number
-PN
+pn
 	INY
 	prcode16 pagenum
-	JMP SPCEXIT
+	JMP spcexit
 
 ;p page length
-PL	INY
-	PRCODE PAGELENGTH
-	JMP SPCEXIT 
+pl	INY
+	PRCODE pagelength
+	JMP spcexit 
 
 ;w set page wait mode
-PW	LDA #0
-	STA CONTINUOUS
+pw	LDA #0
+	STA continuous
 	INY
-	JMP SPCEXIT
+	JMP spcexit
 
-LFSET	LDA #10
-	STA LINEFEED
+lfset	LDA #10
+	STA linefeed
 	INY
-	JMP SPCEXIT
+	JMP spcexit
 ;a set true ASCII mode
-AS	INY
+as	INY
 	LDA #1
-	STA NEEDASC
-	JMP SPCEXIT
-LM	iny
+	STA needasc
+	JMP spcexit
+lm	iny
 	prcode lmargin
 	jmp spcexit
-RM	iny
+rm	iny
 	prcode rmargin
 	jmp spcexit
-TP	iny
+tp	iny
 	prcode topmarg
 	jmp spcexit
-BT	iny
+bt	iny
 	prcode botmarg
 	jmp spcexit
-SP	iny
+sp	iny
 	prcode spacing
 	jmp spcexit
 ;n Jump to next page
@@ -2262,79 +2269,79 @@ nx	ldy ysave
 	sty ysave
 	rts
 ;h define header
-HD	JSR PASTRET
+hd	JSR PASTRET
 	DEY
-	STY HDLEN
+	STY hdlen
 	LDY #1
-HDCOPY	LDA (TEX),Y
-	STA HDBUFF-1,Y
+hdcopy	LDA (tex),Y
+	STA hdbuff-1,Y
 	INY
-	CPY HDLEN
-	BCC HDCOPY
-	BEQ HDCOPY
+	CPY hdlen
+	BCC hdcopy
+	BEQ hdcopy
 	INY
-	JMP SPCEXIT
+	JMP spcexit
 ;Skip just past the return mark
 PASTRET	INY
-	LDA (TEX),Y
-	CMP #RETCHAR
+	LDA (tex),Y
+	CMP #retchar
 	BNE PASTRET
 	RTS
 ;f define header
-FT	JSR PASTRET
+ft	JSR PASTRET
 	DEY
-	STY FTLEN
+	STY ftlen
 	LDY #1
-FTCOPY	LDA (TEX),Y
-	STA FTBUFF-1,Y
+FTCOPY	LDA (tex),Y
+	STA ftbuff-1,Y
 	INY
-	CPY FTLEN
+	CPY ftlen
 	BCC FTCOPY
 	BEQ FTCOPY
 	INY
-	JMP SPCEXIT
+	JMP spcexit
 
 ;i ignore a line 
-COMMENT	JSR PASTRET
-	JMP SPCEXIT
+comment	JSR PASTRET
+	JMP spcexit
 
 ; Define programmable printeys?
 
-DEFINE	INY
-	LDA (TEX),Y
+define	INY
+	LDA (tex),Y
 	CMP #'=
 	BEQ DODEFINE
 	DEY
-	LDA SAVCHAR
-	JMP NOTRET
+	LDA savchar
+	JMP notret
 DODEFINE
 	INY
-	JSR ASCHEX
+	JSR aschex
 	PHA
-	LDA SAVCHAR
+	LDA savchar
 	AND #127
 	TAX
 	PLA
-	STA CODEBUFFER,X
-	JSR SPCEXIT
-	JMP SPCONT
+	STA codebuffer,X
+	JSR spcexit
+	JMP spcont
 ;Link to next file
-LINK	INY
+link	INY
 	LDX #8
-	LDA (TEX),Y
+	LDA (tex),Y
 	AND #63
 	CMP #'D
-	BEQ LINK2
+	BEQ link2
 	ldx #1
 	CMP #'T
-	BEQ LINK2
-	jmp probt
+	BEQ link2
+	jmp pbort
 link2	stx dvn
 	iny
 	lda (tex),y
 	cmp #':
 	beq linkloop
-	jmp probt
+	jmp pbort
 linkloop
 	iny
 	lda (tex),y
@@ -2346,7 +2353,7 @@ linkloop
 outnam	tya
 	sec
 	sbc #3
-	ldx #<fiename
+	ldx #<filename
 	ldy #>filename
 	jsr setnam
 	jsr clrchn
@@ -2420,67 +2427,67 @@ readerr jsr clall
 ;links together the search-specify routine,
 ;the replace-specify routine,
 ;then repeatedly calls Hunt and Replace,
-;until Hunt returns "Not Found." (FPOS+1
+;until Hunt returns "Not Found." (fpos+1
 ;is $FF after a search failure.)
-SANDR	JSR RESET
-	LDA HUNTLEN
+SANDR	JSR reset
+	LDA huntlen
 	BEQ NOSR
-	JSR ASKREP
+	JSR askrep
 SNR	JSR CONTSRCH
-	LDA FPOS+1
+	LDA fpos+1
 	CMP #$FF
 	BEQ NOSR
-	JSR REPL
-	JSR REFRESH
+	JSR repl
+	JSR refresh
 	JMP SNR
-NOSR	JMP SYSMSG
+NOSR	JMP sysmsg
 ;if SHIFT is held down, we ask for and store
 ;the hunt phrase. If SHIFT is not down, we
-;perform the actual hunt. The line in the INBUFF is compared with
+;perform the actual hunt. The line in the inbuff is compared with
 ;characters in text. (p121)
 HUNT	LDA 653
 	CMP #5
 	BNE CONTSRCH
-	top_prmsg srchmsg
+reset	top_prmsg srchmsg
 	jsr input
 	sta huntlen
 	bne oksrch
 	jmp sysmsg
-oOKSRCH	LDY #0
-TOBUFF	LDA INBUFF,Y
-	STA HUNTBUFF,Y
+oksrch	LDY #0
+tobuff	LDA inbuff,Y
+	STA huntbuff,Y
 	INY
-	CPY INLEN
-	BNE TOBUFF
-	JMP SYSMSG
-CONTSRCH	COPY16 CURR,TEX
+	CPY inlen
+	BNE tobuff
+	JMP sysmsg
+CONTSRCH	copy16 curr,tex
 	LDA #$FF
-	STA FPOS+1
+	STA fpos+1
 	LDY #1
 	LDX #0
-	LDA HUNTLEN
-	BEQ NOTFOUND
-SRCH1	LDA HUNTBUFF,X
-	JSR ASTOIN
-	CMP (TEX),Y
+	LDA huntlen
+	BEQ notfound
+SRCH1	LDA huntbuff,X
+	JSR astoin
+	CMP (tex),Y
 	BEQ CY
 	LDX #$FF
 CY	INY
 	BNE NOVFL
-	BCD NOTFOUND
+	BCS notfound
 NOVFL	INX
-	CPX HUNTLEN
+	CPX huntlen
 	BNE SRCH1
 	CLC
 	TYA
-	ADC TEX
-	STA TEMP
-	LDA TEX+1
+	ADC tex
+	STA temp
+	LDA tex+1
 	ADC #0
-	STA TEMP+1
-	LDA LASTLINE
+	STA temp+1
+	LDA lastline
 	cmp temp
-	LDA LASTLINE+1
+	LDA lastline+1
 	sbc temp+1
 	bcc notfound
 	sec
@@ -2536,7 +2543,7 @@ repl	sec
 	lda #0
 	adc curr+1
 	sta fromh
-	sub lastline,destl, llen
+	sub163 lastline,destl, llen
 	jsr umove
 	lda lastline
 	sbc huntlen
@@ -2581,7 +2588,7 @@ buflp	cpy endpos
 	jsr pchrout
 	lda #95 ;underscore
 	jsr pchrout
-NOBRK	INY
+nobrk	INY
 	jmp buflp
 endbuff rts
 ;stage 2 format commands
@@ -2590,7 +2597,7 @@ spec2	sty ysave
 	sta savchar
 	jsr intoas
 
-OTHER	cmp #'C
+other	cmp #'C
 	bne notcenter
 	sec
 	lda pagewidth
@@ -2600,7 +2607,7 @@ OTHER	cmp #'C
 	sbc lmargin
 	tay
 	lda #space
-	jsr pchrout
+cloop	jsr pchrout
 	dey
 	bne cloop
 	ldy ysave
@@ -2632,7 +2639,7 @@ dopgn	sty ysave
 	display_number
 	ldy ysave
 	jmp nobrk
-docodes	LDX SAVCHAR
+docodes	LDX savchar
 	lda codebuffer,x
 	jsr pchrout
 	jmp nobrk
@@ -2656,217 +2663,233 @@ convasc	ldx needasc
 skipasc rts
 ;display free memory
 FREEMEM
-	JSR TOPCLR
+	JSR topclr
 	SEC
-	LDA TEXEND
-	SBC LASTLINE
+	LDA texend
+	SBC lastline
 	TAX
-	LDA TEXEND+1
-	SBC LASTLINE+1
+	LDA texend+1
+	SBC lastline+1
 	DISPLAY_NUMBER
 	LDA #1
-	STA MSGFLG
+	STA msgflg
 	RTS
 
 	mac RVS_RETURN
-	BYTE 18
-	TEXT "RETURN"
-	BYTE 146
+	hex 12 D2 C5 D4 D5 D2 CE 92
+	endm
+	mac SWP
+	hex 28D52CD72CD029 
 	endm
 
 MSG1	BYTE 8,14,155,146
-	TEXT "SPEEDSCRIPT 3.1"
+	; SpeedScript 3.2
+	hex D3 50 45 45 44 D3 43 52 49 50 54 20 33 2e 32 0a
 	BYTE 0
-MSG2	TEXT " BY CHARLES BRANNON"
+MSG2	; by Charles Brannon
+	hex 20 42 59 20 C3 48 41 52 4C 45 53 20 C2 52 41 4E
+	hex 4E 4F 4E
 	BYTE 0
-KILLMSG	TEXT "BUFFER CLEARED"
+killmsg	;TEXT "BUFFER CLEARED"
+	hex C25546464552 20 43484541524544
 	BYTE 0
-BUFERR	TEXT "BUFFER FULL"
+buferr	;TEXT "BUFFER FULL"
+	hex C25546464552 20 46554C4C
 	BYTE 0
-delmsg	TEXT "DELETE (S,W,P)"
+delmsg	;TEXT "DELETE (S,W,P)"
+	hex C4454C45544520
+	SWP
 	BYTE 0
-YNMSG	TEXT ": ARE YOU SURE? (Y/N):"
+ynmsg	;TEXT ": ARE YOU SURE? (Y/N):"
+	hex 3a20c1524520594f5520535552452038d92fce393a00
 	BYTE 0
-CLRMSG	TEXT "ERASE ALL TEXT"
-	BYTE 0
-ERASMSG	TEXT "ERASE (S,W,P): "
+clrmsg	;TEXT "ERASE ALL TEXT"
+	hex C5D2C1D3C520C1CCCC20D4C5D8D400
+erasmsg	;TEXT "ERASE (S,W,P): "
+	hex C55241534520
+	SWP
+	hex 3A20
 	RVS_RETURN
-	TEXT " TO EXIT"
+	;TEXT " TO EXIT"
+	hex 20544F2045584954
 	BYTE 0
-FORMSG	TEXT "PRESS FORMAT KEY:"
-	BYTE 0
-SAVMSG  TEXT "SAVE:"
-	BYTE 0
-FNF	TEXT "TAPE ERROR"
-	BYTE 0
-BRMSG	TEXT "STOPPED"
-	BYTE 0
-VERERR	TEXT "VERIFY ERROR"
-	BYTE 0
-OKMSG	TEXT "NO ERRORS"
-	BYTE 0
-TDMSG	BYTE 147,32,18,212,146
-	TEXT "APE OR "
+formsg	;TEXT "PRESS FORMAT KEY:"
+	hex d05245535320464f524d4154204b45593a00
+savmsg  ;TEXT "SAVE:"
+	hex D34156453A00
+FNF	;TEXT "TAPE ERROR"
+	hex D441504520C5D2D2CFD200
+brmsg	;TEXT "STOPPED"
+	hex D3545050454400
+vererr	;TEXT "VERIFY ERROR"
+	hex D64552494659204552524F5200
+okmsg	;TEXT "NO ERRORS"
+	hex ce4f204552524f525300
+tdmsg	BYTE 147,32,18,212,146
+	;TEXT "APE OR "
+	hex 415045204f5220
 	BYTE 18,196,146
-	TEXT "ISK?"
+	;TEXT "ISK?"
+	hex 49534b3f
 	BYTE 0
-loadmsg TEXT "LOAD:"
-VERMSG	TEXT "VERIFY:"
-DIRMSG	TEXT "PRESS "
+loadmsg ;TEXT "load:"
+	hex cc4f41443a00
+vermsg	;TEXT "VERIFY:"
+	hex d645524946593a00
+dirmsg	;TEXT "PRESS "
+	hex d05245535320
 	RVS_RETURN
 	BYTE 0
-DCMSG	TEXT "DISK COMMAND:"
+dcmsg	;TEXT "DISK COMMAND:"
+	BYTE $80+'D,'I,'S,'K,' ,'C,'O,'M,'M,'A,'N,'D
 	BYTE 0
-DIRNAME	TEXT "$"
-INSERR	TEXT "NO ROOM"
-	BYTE 0
-INSMSG	TEXT "NO TEXT IN BUFFER."
-	BYTE 0
-CHOOSEMSG
+dirname	BYTE '#
+inserr	;TEXT "NO ROOM"
+	hex CE4F20D24F4F4D00
+insmsg	;TEXT "NO TEXT IN BUFFER."
+	hex ce4f205445585420494e204255464645522d00
+choosemsg
 	BYTE 147
-	TEXT "PRINT TO "
+	;TEXT "PRINT TO "
+	hex d052494e5420544f20
 	BYTE 18,211,146
-	text "CREEN,"
+	;text "CREEN,"
+	hex 435245454e4c
 	BYTE 18,196,146
-	text "ISK,"
+	;text "ISK,"
+	hex 49534b2c
 	BYTE 18,208,146
-	text "RINTER?"
-	BYTE 0
-devmsg  byte 196
-	text "EVICE NUMBER?"
-	BYTE 0
-SADRMSG BYTE 211
-	text "ECONDARY ADDRESS #?"
-	BYTE 0
-fnmsg	BYTE 208
-	text "RINT TO FILENAME:"
-	BYTE 0
-prinmsg	BYTE 208
-	text "RINTING..."
-	byte 13,13,0
-waitmsg	byte 201
-	text "NSERT NEXT SHEET, PRESS "
+	;text "RINTER?"
+	hex 52494e5445523f00
+devmsg  ;text "DEVICE NUMBER?"
+	hex c44556494345204e554d4245523f00
+sadrmsg ;text "ECONDARY ADDRESS #?"
+	hex d545434f4e44415259204144445245535320233f00
+fnmsg	;text "PRINT TO FILENAME:"
+	hex d052494e5420544f2046494c454e414d453a00
+prinmsg	;text "PRINTING..."
+	hex d052494e54494e472d2d2d
+	hex 0d0d00
+waitmsg	;text "Insert next sheet, press "
+	hex c94e53455254204e4558542053484545542c20
+	hex 505245535320
 	RVS_RETURN
 	BYTE 0
-SRCHMSG	BYTE 200
-	TEXT "UNT FOR:"
-	BYTE 0
-nfmsg	TEXT "NOT FOUND"
-	BYTE 0
-repmsg	BYTE 210
-	TEXT "EPLACE WITH:"
-	BYTE 0
-xitmsg  BYTE 197,216,201,212,32,211
-	TEXT "PEED"
-	BYTE 211
-	TEXT "CRIPT"
-	BYTE 0
+srchmsg	;TEXT "Hunt for:"
+	hex c8554e5420464f523a00
+nfmsg	;TEXT "NOT FOUND"
+	hex ce4f5420464f554e4400
+repmsg	hex C2 45 50 4C 41 43 45 20 57 49 54 48 3A 00
+xitmsg  
+	;EXIT SpeedScript
+	hex C5 D8 C9 D4 20
+	hex D3 50 45 45 44 D3 43 52 49 50 54 00
 
-TEXSTART
-	*= *+2
-TEXEND
-	*= *+2
-TEXBUF
-	*= *+2
-BUFEND
-	*= *+2
+texstart
+	ORG *+2
+texend
+	ORG *+2
+texbuf
+	ORG *+2
+bufend
+	ORG *+2
 LENTABLE
-	*= *+1
-TOPLIN
-	*= *+2
-MSGFLG
-	*= *+1
+	ORG *+1
+toplin
+	ORG *+2
+msgflg
+	ORG *+1
 INSMODE
-	*= *+1
-ENDPOS
-	*= *+1
-FINPOS
-	*= *+1
-LASTLINE
-	*= *+2
-LIMIT
-	*= *+1
-INLEN
-	*= *+1
+	ORG *+1
+endpos
+	ORG *+1
+finpos
+	ORG *+1
+lastline
+	ORG *+2
+limit
+	ORG *+1
+inlen
+	ORG *+1
 BOTSCR
-	*= *+2
-LBUFF
-	*= *+40
-INBUFF
-	*= *+40
-FILENAME
-	*= *+24
-FNLEN
-	*= *+1
-SAVCURR
-	*= *+2
+	ORG *+2
+lbuff
+	ORG *+40
+inbuff
+	ORG *+40
+filename
+	ORG *+24
+fnlen
+	ORG *+1
+savcurr
+	ORG *+2
 bcd
-	*= *+2
-HEX
-	*= *+2
-TPTR
-	*= *+2
-BUFLEN
-	*= *+2
-GORLEN
-	*= *+2
-FROMSAV
-	*= *+2
-DESTSAV
-	*= *+2
-HDLEN
-	ORG *+1
-FTLEN
-	ORG *+1
-LMARGIN
-	ORG *+1
-RMARGIN
-	ORG *+1
-PAGELENGTH
-	ORG *+1
-TOPMARG
-	ORG *+1
-BOTMARG
-	ORG *+1
-SPACING
-	ORG *+1
-CONTINUOUS
-	ORG *+1
-PAGENUM
 	ORG *+2
-STARTNUM
+hex
 	ORG *+2
-PAGEWIDTH
+tptr
+	ORG *+2
+buflen
+	ORG *+2
+goblen
+	ORG *+2
+fromsav
+	ORG *+2
+destsav
+	ORG *+2
+hdlen
 	ORG *+1
-NOMARG
+ftlen
 	ORG *+1
-POS
+lmargin
 	ORG *+1
-LINE
+rmargin
 	ORG *+1
-YSAVE
+pagelength
 	ORG *+1
-SAVCHAR
+topmarg
 	ORG *+1
-INSLEN
+botmarg
 	ORG *+1
-DEVMO
+spacing
 	ORG *+1
-NEEDASC
+continuous
 	ORG *+1
-UNDERLINE
+pagenum
+	ORG *+2
+startnum
+	ORG *+2
+pagewidth
 	ORG *+1
-FPOS
+nomarg
+	ORG *+1
+pos
+	ORG *+1
+line
+	ORG *+1
+ysave
+	ORG *+1
+savchar
+	ORG *+1
+inslen
+	ORG *+1
+devno
+	ORG *+1
+needasc
+	ORG *+1
+underline
+	ORG *+1
+fpos
 	ORG *+2
 pcr
 	ORG *+1
 huntlen
 	ORG *+1
-huntbuf
+huntbuff
 	ORG *+30
 replen
 	ORG *+1
-repbuf
+repbuff
 	ORG *+30
 codebuffer
 	org *+128
@@ -2884,6 +2907,6 @@ linefeed
 	org *+1
 blinkflag
 	org *+1
-end
+END
 
 
