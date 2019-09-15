@@ -55,7 +55,7 @@
 
 	mac DISPLAY_NUMBER
 	ldy #55
-	sta map
+	sty map
 	jsr $BDCD ;BASIC number display
 	ldy #54
 	sty map
@@ -410,7 +410,8 @@ INIT	LDA #147
 	STA fpos+1
 	JMP ioinit
 INIT2	JSR killbuff
-	LDA #128
+; moved forward to match binary
+INIT3	LDA #128
 	STA 650 ;TODO
 	STA $9D ;TODO
 	JSR highlight
@@ -431,8 +432,9 @@ INIT2	JSR killbuff
 ;JSR check was originally inserted to fix
 ;a bug, but caused a bug itself.
 
-	NOP
-	NOP
+	;NOP
+	;NOP
+	HEX B10B ; to match a known binary
 
 ;sysmsg displays "SpeedScript" and the version.
 sysmsg	JSR topclr
@@ -614,9 +616,9 @@ FOUND	DEX
 	TXA
 	ASL
 	TAX
-	LDA #>main-1
+	LDA #>(main-1)
 	PHA
-	LDA #>main-1
+	LDA #<(main-1)
 	PHA
 	LDA VECT+1,X
 	PHA
@@ -680,10 +682,10 @@ REF	JSR refresh
 OK2	RTS
 
 check2	SEC
-	LDA lastline
+	lda lastline
 	SBC texend
 	STA temp
-	LDA lastline+1
+	lda lastline+1
 	SBC texend+1
 	ORA temp
 	BCC CK3
@@ -714,9 +716,9 @@ INRANGE	SEC
 	BCS OUTRANGE
 	RTS
 OUTRANGE
-	LDA lastline
+	lda lastline
 	STA curr
-	LDA lastline+1
+	lda lastline+1
 	STA curr+1
 	RTS
 ; move cursor right.
@@ -804,7 +806,7 @@ lastword
 
 endtex	LDA #0
 	STA toplin
-	LDA lastline+1
+	lda lastline+1
 	SEC
 	SBC #4
 	CMP texstart+1
@@ -817,7 +819,7 @@ SAFE	STA toplin+1
 	MAC INC15
 	INC {1}
 	LDA {1}
-	and #14
+	and #15
 	sta {1}
 	endm
 ;The raster interrupt automatically places
@@ -833,7 +835,7 @@ scrcol	BYTE 12 ; gray
 ;they're changed, you can resave SpeedScript and it
 ;will come up with your color choice in the future.
 LETTERS	INC15 TEXCOLR
-	RTS
+	JMP refresh
 TEXCOLR	BYTE 11 ;dark gray
 
 ;Sentence left. We look backward for ending punctuation
@@ -896,6 +898,7 @@ srlp	LDA (curr),Y
 	lda curr+1
 	cmp lastline+1
 	beq srlp
+	bcc srlp
 srexit	jmp lastword
 punct2	iny
 	bne nofixcurr
@@ -1124,7 +1127,9 @@ outspace
 
 	sub163 lastline,destl,llen
 	sub163 froml,destl,goblen
+	jsr umove
 	sub163 lastline,goblen,lastline
+	rts
 	
 ;Inserts 255 spaces. Notice how it and other
 ;insert routines use TAB2.
@@ -1231,7 +1236,7 @@ CLEAR	LDA #2  ;red!
 DOIT LDX #$FA
 	TXS
 	JSR erase
-	JSR INIT2
+	JSR INIT3
 	JMP main
 ;Paragraph right.
 paright LDY #0
@@ -1293,7 +1298,10 @@ highlight
 	STA $DC0E
 	LDA #27
 	STA $D011
-	copy16 IRQ,$0314
+	LDA #<IRQ
+	STA $0314
+	LDA #>IRQ
+	STA $0315
 	LDA #1
 	STA $D01A
 	STA $D012
@@ -1326,7 +1334,7 @@ ERAS	LDA 653
 ERAS1	JSR topclr
 	DO_PRMSG erasmsg
 erasagain
-	LDA #0
+	LDY #0
 	LDA (curr),Y
 	EOR #$80
 	STA (curr),Y
@@ -1526,7 +1534,7 @@ setname sty fnlen
 	top_prmsg inbuff
 	lda fnlen
 	ldx #<filename
-	ldx #>filename
+	ldy #>filename
 	jsr setnam
 	lda #13 ;cr
 	jsr chrout
@@ -1616,7 +1624,7 @@ endir
 	rts
 dir	jsr clall
 	lda #1
-	ldx #0
+	ldx #8
 	ldy #0
 	jsr setlfs
 	lda #1
@@ -1646,18 +1654,14 @@ nopause ldx #1
 	pla
 	tax
 	tya
-	ldy #55
-	sty map
-	jsr $bdcd ; BASIC number output
-	ldy #54
-	sty map
+	display_number
 	lda #space
 	jsr chrout
 inloop	jsr dchrin
 	beq dline
 	jsr chrout
 	jmp inloop
-dline 	cmp #13
+dline 	lda #13
 	jsr chrout
 	jmp dirloop
 dchrin  jsr chrin
@@ -1720,7 +1724,6 @@ donenum	lda hex
 ;p113
 
 insbuffer
-	sec
 	sub163 tptr,texbuf,buflen
 	ora buflen
 	bne okbuff
@@ -1846,7 +1849,10 @@ skipout	pla
 	rts
 ;display "Printing..."
 prin	jsr topclr
-	do_prmsg prinmsg
+	;do_prmsg prinmsg
+	LDA #<prinmsg
+	LDY #>prinmsg
+	JMP PRMSG
 pbort	jmp pexit
 ;ctrlp
 print	lda scrcol
@@ -1924,7 +1930,7 @@ overques	lda #1
 	jsr close
 	jsr open
 	ldx #1
-	jsr chrout
+	jsr chkout
 	bcc prok	
 	jmp pexit
 ;reset flags
@@ -2021,8 +2027,7 @@ zbuff	jsr crlf
 	jsr page
 ;Have we reached end of text?
 	
-notpage	sec
-	sbc_oratemp tex,lastline
+notpage	sbc_oratemp tex,lastline
 	beq dorpt
 	bcc dorpt
 ;check for footer
@@ -2064,6 +2069,7 @@ nexpage	jsr cr
 
 nosk	lda ftlen
 	beq skipft
+	sta endpos
 	lda #<ftbuff
 	sta indir
 	lda #>ftbuff
@@ -2084,7 +2090,7 @@ noipn	lda continuous
 	lda devno
 	cmp #3
 	beq top
-	cmp #0
+	cmp #8
 	beq top
 	sec
 	lda pagenum
@@ -2160,9 +2166,9 @@ fsp	dex
 	asl
 	tax
 	sty ysave
-	lda #>spcont-1
+	lda #>(spcont-1)
 	pha
-	lda #<spcont-1
+	lda #<(spcont-1)
 	pha
 	lda spvect+1,x
 	pha
@@ -2214,7 +2220,7 @@ across
 	mac prcode16
 	prcode {1}
 	LDA hex+1
-	STA {1}
+	STA {1}+1
 	endm
 ;? Print starting at specified page
 spage
@@ -2302,7 +2308,6 @@ FTCOPY	LDA (tex),Y
 	CPY ftlen
 	BCC FTCOPY
 	BEQ FTCOPY
-	INY
 	JMP spcexit
 
 ;i ignore a line 
@@ -2334,10 +2339,10 @@ link	INY
 	LDX #8
 	LDA (tex),Y
 	AND #63
-	CMP #'D
+	CMP #4
 	BEQ link2
 	ldx #1
-	CMP #'T
+	CMP #20 ;t
 	BEQ link2
 	jmp pbort
 link2	stx dvn
@@ -2394,7 +2399,7 @@ dcmnd jsr clall
 dcout	lda #15
 	jsr close
 	jsr clall
-	jsr sysmsg
+	jmp sysmsg
 okd	top_prmsg dcmsg
 	jsr input
 	beq readerr
@@ -2477,9 +2482,13 @@ SRCH1	LDA huntbuff,X
 	BEQ CY
 	LDX #$FF
 CY	INY
-	BNE NOVFL
+	BNE novfl
+	INC tex+1
+	lda tex+1
+	cmp lastline+1
+	beq novfl
 	BCS notfound
-NOVFL	INX
+novfl	INX
 	CPX huntlen
 	BNE SRCH1
 	CLC
@@ -2489,9 +2498,9 @@ NOVFL	INX
 	LDA tex+1
 	ADC #0
 	STA temp+1
-	LDA lastline
+	lda lastline
 	cmp temp
-	LDA lastline+1
+	lda lastline+1
 	sbc temp+1
 	bcc notfound
 	sec
@@ -2549,6 +2558,7 @@ repl	sec
 	sta fromh
 	sub163 lastline,destl, llen
 	jsr umove
+	sec
 	lda lastline
 	sbc huntlen
 	sta lastline
@@ -2683,30 +2693,28 @@ FREEMEM
 	hex 12 D2 C5 D4 D5 D2 CE 92
 	endm
 	mac SWP
-	hex 28D52CD72CD029 
+	hex 28D32CD72CD029 
 	endm
 
-MSG1	BYTE 8,14,155,146
-	; SpeedScript 3.2
-	hex D3 50 45 45 44 D3 43 52 49 50 54 20 33 2e 32 0a
-	BYTE 0
+; speedscript 3.1 by charles brannon
+MSG1	hex 08 0e 9b 92 d3  50 45 45 44 d3 43 52 49
+	hex 50 54 20 33 2e 31 00
 MSG2	; by Charles Brannon
 	hex 20 42 59 20 C3 48 41 52 4C 45 53 20 C2 52 41 4E
 	hex 4E 4F 4E
 	BYTE 0
 killmsg	;TEXT "BUFFER CLEARED"
-	hex C25546464552 20 43484541524544
+	hex C25546464552 20 C34C4541524544
 	BYTE 0
 buferr	;TEXT "BUFFER FULL"
-	hex C25546464552 20 46554C4C
+	hex C25546464552 20 C6554C4C
 	BYTE 0
 delmsg	;TEXT "DELETE (S,W,P)"
 	hex C4454C45544520
 	SWP
 	BYTE 0
 ynmsg	;TEXT ": ARE YOU SURE? (Y/N):"
-	hex 3a20c1524520594f5520535552452038d92fce393a00
-	BYTE 0
+	hex 3a20c1524520594f5520535552453f2028d92fce293a00
 clrmsg	;TEXT "ERASE ALL TEXT"
 	hex C5D2C1D3C520C1CCCC20D4C5D8D400
 erasmsg	;TEXT "ERASE (S,W,P): "
@@ -2724,9 +2732,9 @@ savmsg  ;TEXT "SAVE:"
 FNF	;TEXT "TAPE ERROR"
 	hex D441504520C5D2D2CFD200
 brmsg	;TEXT "STOPPED"
-	hex D3545050454400
+	hex D3544F5050454400
 vererr	;TEXT "VERIFY ERROR"
-	hex D64552494659204552524F5200
+	hex D6455249465920C552524F5200
 okmsg	;TEXT "NO ERRORS"
 	hex ce4f204552524f525300
 tdmsg	BYTE 147,32,18,212,146
@@ -2746,33 +2754,33 @@ dirmsg	;TEXT "PRESS "
 	BYTE 0
 dcmsg	;TEXT "DISK COMMAND:"
 	BYTE $80+'D,'I,'S,'K,' ,'C,'O,'M,'M,'A,'N,'D
-	BYTE 0
-dirname	BYTE '#
+	BYTE ':,0
+dirname	BYTE '$
 inserr	;TEXT "NO ROOM"
 	hex CE4F20D24F4F4D00
 insmsg	;TEXT "NO TEXT IN BUFFER."
-	hex ce4f205445585420494e204255464645522d00
+	hex ce4f205445585420494e204255464645522e00
 choosemsg
 	BYTE 147
 	;TEXT "PRINT TO "
-	hex d052494e5420544f20
+	hex d052494e5420544f3a20
 	BYTE 18,211,146
 	;text "CREEN,"
-	hex 435245454e4c
+	hex 435245454e2c
 	BYTE 18,196,146
 	;text "ISK,"
 	hex 49534b2c
 	BYTE 18,208,146
 	;text "RINTER?"
 	hex 52494e5445523f00
-devmsg  ;text "DEVICE NUMBER?"
+devmsg  ;text "Device number?"
 	hex c44556494345204e554d4245523f00
-sadrmsg ;text "ECONDARY ADDRESS #?"
-	hex d545434f4e44415259204144445245535320233f00
+sadrmsg ;text "Secondary address #?"
+	hex d345434f4e4441525920C144445245535320233f00
 fnmsg	;text "PRINT TO FILENAME:"
 	hex d052494e5420544f2046494c454e414d453a00
 prinmsg	;text "PRINTING..."
-	hex d052494e54494e472d2d2d
+	hex 93d052494e54494e472e2e2e
 	hex 0d0d00
 waitmsg	;text "Insert next sheet, press "
 	hex c94e53455254204e4558542053484545542c20
@@ -2782,8 +2790,8 @@ waitmsg	;text "Insert next sheet, press "
 srchmsg	;TEXT "Hunt for:"
 	hex c8554e5420464f523a00
 nfmsg	;TEXT "NOT FOUND"
-	hex ce4f5420464f554e4400
-repmsg	hex C2 45 50 4C 41 43 45 20 57 49 54 48 3A 00
+	hex ce4f5420C64f554e4400
+repmsg	hex D2 45 50 4C 41 43 45 20 57 49 54 48 3A 00
 xitmsg  
 	;EXIT SpeedScript
 	hex C5 D8 C9 D4 20
