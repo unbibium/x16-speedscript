@@ -35,6 +35,16 @@
 	sta {1}+1
 	endm
 
+	MAC COMP16
+	sec
+	lda {1}
+	sbc {2}
+	sta temp
+	lda {1}+1
+	sbc {2}+1
+	ora temp
+	ENDM
+
 	MAC DO_PRMSG
 	LDA #<{1}
 	LDY #>{1}
@@ -640,13 +650,7 @@ check	JSR check2
 	LDA curr+1
 	SBC toplin+1
 	BCS OK1
-	SEC
-	LDA toplin
-	SBC texstart
-	STA temp
-	LDA toplin+1
-	SBC texstart+1
-	ORA temp
+	COMP16 toplin,texstart
 	BEQ OK1
 	LDA curr
 	STA toplin
@@ -925,19 +929,8 @@ killbuff	copy16 texbuf,tptr
 ; This is the second level of the
 ; general-purpose delete routines. (p.105)
 
-	; I think this is just an equals check
-	; will rename it to CMP16 later
-	MAC SBC_ORATEMP
-	sec
-	lda {1}
-	sbc {2}
-	sta temp
-	lda {1}+1
-	sbc {2}+1
-	ora temp
-	ENDM
 
-del1	SBC_ORATEMP curr,texstart
+del1	COMP16 curr,texstart
 	BNE DEL1A
 DELABORT	PLA
 	PLA
@@ -1072,7 +1065,7 @@ NOTPAR	RTS
 ;Home the cursor. if the cursor
 ;is already home, move the cursor
 ;to the top of text.
-HOME	SBC_ORATEMP curr,toplin
+HOME	COMP16 curr,toplin
 	beq tophome
 	copy16 toplin,curr
 	rts
@@ -1270,7 +1263,7 @@ retf2	sec
 	lda #0
 	adc tex+1
 	sta tex+1
-	sbc_oratemp tex,curr
+	COMP16 tex,curr
 	bne textocurr
 	sty temp
 	clc
@@ -1548,7 +1541,7 @@ NOINS	JSR sysmsg
 	JMP PUTCHR
 ;p112
 TLOAD
-	SBC_ORATEMP curr,texstart
+	COMP16 curr,texstart
 	BEQ load2
 	lda #5
 	sta windcolr
@@ -2020,7 +2013,7 @@ zbuff	jsr crlf
 	jsr page
 ;Have we reached end of text?
 	
-notpage	sbc_oratemp tex,lastline
+notpage	COMP16 tex,lastline
 	beq dorpt
 	bcc dorpt
 ;check for footer
