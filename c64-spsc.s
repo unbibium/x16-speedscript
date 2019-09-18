@@ -1,85 +1,133 @@
 ; SpeedScript 3.1
 ; copied by hand out of the pdf at archive.org
 ;
-	processor 6502
 
-	org $0801
+.PSC02
 
+.org $0801
+
+; memory map
+TEXENDVAL = $7F00
+
+INSCOLOR = 14
+TOPFGCOLOR = 1
+
+; allow some dasm things
+.feature missing_char_term
+.feature labels_without_colons
+
+.code
 	; sys2061
-	hex 0B080A009E32303631000000
+	.word BASICEND ; end of basic
+	.word 10  ; line number
+	.byte $9E ; SYS token
+.ASSERT BEGIN<10000, error, "SYS number would be too high"
+	.byte $30 + (BEGIN .MOD 10000)/1000
+	.byte $30 + (BEGIN .MOD 1000)/100
+	.byte $30 + (BEGIN .MOD 100)/10
+	.byte $30 + (BEGIN .MOD 10)
+	; now I can put stuff here
+	.byte 0
+BASICEND: .byte 0,0
 
 	; some macros
-	mac copy16
-	lda {1}
-	sta {2}
-	lda {1}+1
-	sta {2}+1
-	endm
+.macro copy16 src, dst, dst2
+	lda src
+	sta dst
+.ifnblank dst2
+	sta dst2
+.endif
+	lda src+1
+	sta dst+1
+.ifnblank dst2
+	sta dst2+1
+.endif
+.endmacro
 
-	mac COPY163
-	lda {1}
-	sta {2}
-	sta {3}
-	lda {1}+1
-	sta {2}+1
-	sta {3}+1
-	endm
-
-	mac add16
+.macro add16 left,right
 	clc
-	lda {1}
-	adc {2}
-	sta {1}
-	lda {1}+1
-	adc {2}+1
-	sta {1}+1
-	endm
+	lda left
+	adc right
+	sta left
+	lda left+1
+	adc right+1
+	sta left+1
+.endmacro
 
-	MAC COMP16
+.macro COMP16 left,right
 	sec
-	lda {1}
-	sbc {2}
+	lda left
+	sbc right
 	sta temp
-	lda {1}+1
-	sbc {2}+1
+	lda left+1
+	sbc right+1
 	ora temp
-	ENDM
+.endmacro
 
-	MAC DO_PRMSG
-	LDA #<{1}
-	LDY #>{1}
+;  sub16 left,right       :  left - right -> left
+;  sub16 left,right,dst   : left - right -> dst
+.macro sub16 left,right,dst
+	sec
+	lda left
+	sbc right
+.ifnblank dst
+	sta dst
+.else
+	sta left
+.endif
+	lda left+1
+	sbc right+1
+.ifnblank dst
+	sta dst+1
+.else
+	sta left+1
+.endif
+.endmacro
+
+
+.macro PrintMessage message
+	LDA #<message
+	LDY #>message
 	JSR PRMSG
-	ENDM
+.endmacro
 
-	MAC top_prmsg
+.macro top_prmsg message
 	jsr topclr
-	do_prmsg {1}
-	ENDM
+	PrintMessage message
+.endmacro
 
-	mac DISPLAY_NUMBER
+.macro BASIC_ON
 	ldy #55
 	sty map
-	jsr $BDCD ;BASIC number display
+.endmacro
+
+.macro BASIC_OFF
 	ldy #54
 	sty map
-	endm
+.endmacro
+
+.macro display_number
+	BASIC_ON
+	jsr $BDCD ;BASIC number display
+	BASIC_OFF
+.endmacro
 
 
 ;Named constants not used in source.
 ;May be useful for future ports.
-SCRMEM equ $0400
-COLMEM equ $D800
-COLUMNS equ 40
-ROWS    equ 25
-space   equ 32
+SCRMEM = $0400
+COLMEM = $D800
+COLUMNS = 40
+ROWS    = 25
+space   = 32
 
 ;Locations used by high-speed memory 
 ;move routines: 
 
-froml equ $26 
-fromh equ $27 
-destl equ $9E 
-desth equ $9F 
+froml = $26 
+fromh = $27 
+destl = $9E 
+desth = $9F 
 llen = $B4 
 hlen = $B5 
 
@@ -113,8 +161,8 @@ UNDERCURS = $02
 ;pointing arrow). 
 
 windcolr = $0C 
-map equ $01 
-retchar equ 31 
+map = $01 
+retchar = 31 
 
 ;Kernal Routines 
 ;(refer to the Commodore 64 Programmer's Reference ;Guide): 
@@ -390,8 +438,8 @@ getakey	JSR getin
 
 INIT	LDA #147
 	JSR chrout
-	LDA #54
-	STA map
+	lda #54
+	sta map
 	LDA #0
 	STA INSMODE
 	STA texstart
@@ -424,7 +472,7 @@ INIT3	LDA #128
 	sta $0319
 	copy16 texstart,curr
 	JSR sysmsg
-	DO_PRMSG MSG2
+	PrintMessage MSG2
 	INC msgflg
 	RTS
 
@@ -437,11 +485,11 @@ INIT3	LDA #128
 
 	;NOP
 	;NOP
-	HEX B10B ; to match a known binary
+	.BYTE $B1,$0B ; to match a known binary
 
 ;sysmsg displays "SpeedScript" and the version.
 sysmsg	JSR topclr
-	DO_PRMSG MSG1
+	PrintMessage MSG1
 	LDA #0
 	STA msgflg
 	RTS
@@ -471,7 +519,7 @@ NOTCURSOR	LDA #2
 	STA windcolr
 	JSR clrchn
 	JSR topclr
-	DO_PRMSG xitmsg
+	PrintMessage xitmsg
 	JSR YORN
 	BNE REBOOT
 	JSR delite
@@ -628,20 +676,20 @@ FOUND	DEX
 	LDA VECT,X
 	PHA
 	RTS
-CTBL 	BYTE 39
-	BYTE 29,157,137,133,2,12,138,134,20,148
-	BYTE 4,19,9,147,135,139,5,136,140
-	BYTE 22,145,17,159,18,24,26,16
-	BYTE 28,30,6,1,11,8,31,3,131
-	BYTE 10,141,7
-VECT	WORD right-1,left-1,wleft-1,wright-1,BORDER-1,LETTERS-1
-	WORD sleft-1,sright-1,DELCHAR-1,inschar-1,DELETE-1
-	WORD HOME-1,instgl-1,CLEAR-1,paright-1,parleft-1
-	WORD ERAS-1,TLOAD-1,TSAVE-1,verify-1
-	WORD sleft-1,sright-1,catalog-1,insbuffer-1,switch-1
-	WORD endtex-1,print-1,FORMAT-1,dcmnd-1
-	WORD DELIN-1,alpha-1,killbuff-1,HUNT-1,FREEMEM-1,tab-1
-	WORD lottaspaces-1,repstart-1,endpar-1,SANDR-1
+CTBL 	.BYTE 39
+	.BYTE 29,157,137,133,2,12,138,134,20,148
+	.BYTE 4,19,9,147,135,139,5,136,140
+	.BYTE 22,145,17,159,18,24,26,16
+	.BYTE 28,30,6,1,11,8,31,3,131
+	.BYTE 10,141,7
+VECT	.WORD right-1,left-1,wleft-1,wright-1,BORDER-1,LETTERS-1
+	.WORD sleft-1,sright-1,DELCHAR-1,inschar-1,DELETE-1
+	.WORD HOME-1,instgl-1,CLEAR-1,paright-1,parleft-1
+	.WORD ERAS-1,TLOAD-1,TSAVE-1,verify-1
+	.WORD sleft-1,sright-1,catalog-1,insbuffer-1,switch-1
+	.WORD endtex-1,print-1,FORMAT-1,dcmnd-1
+	.WORD DELIN-1,alpha-1,killbuff-1,HUNT-1,FREEMEM-1,tab-1
+	.WORD lottaspaces-1,repstart-1,endpar-1,SANDR-1
 ;The check routine (yadda yadda page 102)
 check	JSR check2
 	SEC
@@ -813,19 +861,20 @@ SAFE	STA toplin+1
 	JSR refresh
 	JMP lastword
 
-	MAC INC15
-	INC {1}
-	LDA {1}
+.MACRO INC15 loc
+	INC loc
+	LDA loc
 	and #15
-	sta {1}
-	endm
+	sta loc
+.ENDMACRO
+
 ;The raster interrupt automatically places
 ;SCRCOL into 53281 when appropriate. The AND
 ;keeps SCRCOL within a legal range (I know that's
 ;not really necessary)
 BORDER	INC15 scrcol
 	RTS
-scrcol	BYTE 12 ; gray
+scrcol	.BYTE 12 ; gray
 ;TEXCOLR (text color) is used in the refresh routine
 ;and stored into color memory. Both SCRCOL and TEXCOLR
 ;are stored within the SpeedScript code so that after
@@ -833,19 +882,19 @@ scrcol	BYTE 12 ; gray
 ;will come up with your color choice in the future.
 LETTERS	INC15 TEXCOLR
 	JMP refresh
-TEXCOLR	BYTE 11 ;dark gray
+TEXCOLR	.BYTE 11 ;dark gray
 
 ;Sentence left. We look backward for ending punctuation
 ;or a return mark, then go forward until we run out of spaces.
 
-	MAC B_IF_PUNCT
+.MACRO B_IF_PUNCT loc
 	CMP #'.
-	BEQ {1}
+	BEQ loc
 	CMP #'!
-	BEQ {1}
+	BEQ loc
 	CMP #'?
-	BEQ {1}
-	ENDM
+	BEQ loc
+.ENDMACRO
 	
 sleft
 	copy16 curr,tex
@@ -908,7 +957,7 @@ punct2	iny
 nofixcurr	lda (curr),y
 	cmp #space
 	beq punct2
-	b_if_punct punct2
+	B_IF_PUNCT punct2
 	cmp #retchar
 	beq punct2
 	jmp adycurr
@@ -921,7 +970,7 @@ nofixcurr	lda (curr),y
 ; actually erased.
 killbuff	copy16 texbuf,tptr
 	JSR topclr
-	DO_PRMSG killmsg
+	PrintMessage killmsg
 	LDA #1
 	STA msgflg
 	RTS
@@ -1038,7 +1087,7 @@ DELETE	JSR killbuff
 	LDA #2
 	STA windcolr
 	JSR topclr
-	DO_PRMSG delmsg
+	PrintMessage delmsg
 	JSR getakey
 	PHA
 	JSR sysmsg
@@ -1076,7 +1125,7 @@ tophome	copy16 texstart,curr
 ; cursor and following nonspace text.
 ; Sometimes inventing labels can be fun.
 EATSPACE
-	COPY163 curr,tex,destl
+	copy16 curr,tex,destl
 	ldy #0
 spcsrch	lda (tex),y
 	cmp #space
@@ -1100,21 +1149,10 @@ outspace
 	adc tex+1
 	sta fromh
 
-	; {1} - {2} -> {3}
-	mac sub163
-	sec
-	lda {1}
-	sbc {2}
-	sta {3}
-	lda {1}+1
-	sbc {2}+1
-	sta {3}+1
-	endm
-
-	sub163 lastline,destl,llen
-	sub163 froml,destl,goblen
+	sub16 lastline,destl,llen
+	sub16 froml,destl,goblen
 	jsr umove
-	sub163 lastline,goblen,lastline
+	sub16 lastline,goblen,lastline
 	rts
 	
 ;Inserts 255 spaces. Notice how it and other
@@ -1190,7 +1228,7 @@ okins	clc
 	sta froml+1
 	adc inslen+1
 	sta destl+1
-	sub163 lastline,froml,llen
+	sub16 lastline,froml,llen
 	jsr dmove
 	add16 lastline,inslen
 inout	rts
@@ -1202,20 +1240,20 @@ instgl	LDA INSMODE
 	STA INSMODE
 	RTS
 ;Another example of modular code.
-YORN	DO_PRMSG ynmsg
+YORN	PrintMessage ynmsg
 YORNKEY JSR $FF9F  ; TODO: constant
 	JSR getin
 	BEQ YORNKEY
 	CMP #147  ;user is spamming CLR/HOME
 	BEQ YORNKEY ;ignore it
 	AND #127
-	CMP #'Y
+	CMP #'y
 	RTS
 ;Erase all text. (p108)
 CLEAR	LDA #2  ;red!
 	STA windcolr 
 	JSR topclr
-	DO_PRMSG clrmsg
+	PrintMessage clrmsg
 	JSR YORN
 	BEQ DOIT
 	JMP sysmsg
@@ -1318,7 +1356,7 @@ ERAS	LDA 653
 	BNE ERAS1
 	JSR killbuff
 ERAS1	JSR topclr
-	DO_PRMSG erasmsg
+	PrintMessage erasmsg
 erasagain
 	LDY #0
 	LDA (curr),Y
@@ -1333,24 +1371,24 @@ erasagain
 	sta windcolr
 	jsr getakey
 	ora #64
-	cmp #'W
+	cmp #'w
 	bne noword
 erasword jsr era1
 	jsr wright
 	jmp era2
-noword	cmp #'S
+noword	cmp #'s
 	bne unsent
 erasent jsr era1
 	jsr sright
 	jmp era2
-unsent	cmp #'P
+unsent	cmp #'p
 	bne nopar
 	jsr era1
 	jsr paright
 	jmp era2
 nopar	jsr check
 	jmp sysmsg
-era1	copy163 curr,destl,savcurr
+era1	copy16 curr,destl,savcurr
 	rts
 era2	sec
 	lda curr
@@ -1456,26 +1494,26 @@ TAPERR	LDA dvn
 	CMP #1
 	BEQ TAPERR
 	JSR topclr
-	DO_PRMSG FNF
+	PrintMessage FNF
 erxit	JSR highlight
 	LDA #1
 	STA msgflg
 	RTS
 STOPPED	JSR topclr
-	DO_PRMSG brmsg
+	PrintMessage brmsg
 	JMP erxit
-dvn	BYTE 0
+dvn	.BYTE 0
 
 ;TOPEN
 topen	JSR input
 	BEQ OPABORT
-OP2	DO_PRMSG tdmsg
+OP2	PrintMessage tdmsg
 	JSR getakey
 	LDX #8
-	CMP #'D
+	CMP #'d
 	BEQ OPCONT
 	LDX #1
-	CMP #'T
+	CMP #'t
 	BEQ OPCONT
 OPABORT	JSR sysmsg
 	PLA
@@ -1528,7 +1566,7 @@ setname sty fnlen
 ; called by CTRL-\ to enter a format code.
 ; It checks insert mode and inserts if necessary.
 FORMAT	JSR topclr
-	DO_PRMSG formsg
+	PrintMessage formsg
 	JSR getakey
 	JSR astoin
 	ORA #$80
@@ -1597,7 +1635,7 @@ catalog lda #147 ;CLR
 	jsr dir
 	lda #13 ;cr
 	jsr chrout
-	do_prmsg dirmsg
+	PrintMessage dirmsg
 waitkey	jsr getin
 	cmp #13
 	bne waitkey
@@ -1710,11 +1748,11 @@ donenum	lda hex
 ;p113
 
 insbuffer
-	sub163 tptr,texbuf,buflen
+	sub16 tptr,texbuf,buflen
 	ora buflen
 	bne okbuff
 	jsr topclr
-	do_prmsg insmsg
+	PrintMessage insmsg
 	lda #1
 	sta msgflg
 	rts
@@ -1728,13 +1766,13 @@ okbuff	clc
 	sta froml+1
 	adc buflen+1
 	sta destl+1
-	sub163 lastline,froml, llen
+	sub16 lastline,froml, llen
 	clc
 	adc desth
 	cmp texend+1
 	bcc okmov
 	jsr topclr
-	do_prmsg inserr
+	PrintMessage inserr
 	lda #1
 	sta msgflg
 	rts
@@ -1800,9 +1838,9 @@ isk2	sta temp
 	
 ;oh boy printer stuff p114
 
-deftab BYTE 5,75,66,5,58,1,1,1,0,1,0,80
+deftab .BYTE 5,75,66,5,58,1,1,1,0,1,0,80
 	
-prcodes BYTE 27,14,15,18
+prcodes .BYTE 27,14,15,18
 
 pchrout	sta pcr
 	txa
@@ -1835,7 +1873,7 @@ skipout	pla
 	rts
 ;display "Printing..."
 prin	jsr topclr
-	;do_prmsg prinmsg
+	;PrintMessage prinmsg
 	LDA #<prinmsg
 	LDY #>prinmsg
 	JMP PRMSG
@@ -1860,14 +1898,14 @@ askques	top_prmsg choosemsg
 	and #127
 	ldx #3
 	stx devno
-	cmp #'S
+	cmp #'s
 	beq prcont
 notscreen
 	ldx #8
 	stx devno
-	cmp #'D
+	cmp #'d
 	beq dofn
-	cmp #'P
+	cmp #'p
 	bne pbort
 	top_prmsg devmsg
 	jsr getakey
@@ -1887,7 +1925,7 @@ dofn	top_prmsg fnmsg
 	lda #',
 	sta inbuff,y
 	iny
-	lda #'W
+	lda #'w
 	sta inbuff,y
 	iny
 	sty inlen
@@ -2175,15 +2213,14 @@ spcexit	lda (tex),y
 	dey
 noad	sty ysave
 	rts
-sptab	byte 18
-	;text "WALRTBSNHF@P?XMIGJ" 
-	hex 57414c525442534e484640503f584d49474a
+sptab	.byte 18
+	.byte "walrtbsnhf@p?xmigj" 
 
-spvect	word pw-1,as-1,lm-1,rm-1,tp-1
-	word bt-1,sp-1,nx-1,hd-1,ft-1
-	word pn-1,pl-1,spage-1,across-1
-	word mrelease-1,comment-1,link-1
-	word lfset-1
+spvect	.word pw-1,as-1,lm-1,rm-1,tp-1
+	.word bt-1,sp-1,nx-1,hd-1,ft-1
+	.word pn-1,pl-1,spage-1,across-1
+	.word mrelease-1,comment-1,link-1
+	.word lfset-1
 
 ;m Margin release.
 ; INY is used to skip over the format character.
@@ -2199,15 +2236,16 @@ across
 	STA pagewidth
 	JMP spcexit
 
-	mac prcode
+.macro prcode loc
 	JSR aschex
-	STA {1}
-	endm
-	mac prcode16
-	prcode {1}
+	STA loc
+.endmacro
+.macro prcode16 loc
+	prcode loc
 	LDA hex+1
-	STA {1}+1
-	endm
+	STA loc+1
+.endmacro
+
 ;? Print starting at specified page
 spage
 	INY
@@ -2221,7 +2259,7 @@ pn
 
 ;p page length
 pl	INY
-	PRCODE pagelength
+	prcode pagelength
 	JMP spcexit 
 
 ;w set page wait mode
@@ -2392,7 +2430,7 @@ okd	top_prmsg dcmsg
 	ldx #15
 	jsr chkout
 	bcs dcout
-	do_prmsg inbuff
+	PrintMessage inbuff
 	lda #13 ;cr
 	jsr chrout
 	jsr clrchn
@@ -2542,7 +2580,7 @@ repl	sec
 	lda #0
 	adc curr+1
 	sta fromh
-	sub163 lastline,destl, llen
+	sub16 lastline,destl, llen
 	jsr umove
 	sec
 	lda lastline
@@ -2597,7 +2635,7 @@ spec2	sty ysave
 	sta savchar
 	jsr intoas
 
-other	cmp #'C
+other	cmp #'c
 	bne notcenter
 	sec
 	lda pagewidth
@@ -2614,7 +2652,7 @@ cloop	jsr pchrout
 	jmp nobrk
 ;edge right
 notcenter
-	cmp #'E
+	cmp #'e
 	bne notedge
 edge	sec
 	lda rmargin
@@ -2625,7 +2663,7 @@ edge	sec
 	lda #space
 	jmp cloop
 notedge
-	cmp #'U
+	cmp #'u
 	bne notog
 	lda underline
 	eor #1
@@ -2647,7 +2685,7 @@ convasc	ldx needasc
 	beq skipasc
 	sta temp
 	and #127
-	cmp #'A
+	cmp #'a
 	bcc skipasc
 	cmp #'[
 	bcs skipasc
@@ -2670,241 +2708,197 @@ FREEMEM
 	TAX
 	LDA texend+1
 	SBC lastline+1
-	DISPLAY_NUMBER
+	display_number
 	LDA #1
 	STA msgflg
 	RTS
 
-	mac RVS_RETURN
-	hex 12 D2 C5 D4 D5 D2 CE 92
-	endm
-	mac SWP
-	hex 28D32CD72CD029 
-	endm
+
+.macro RVS_TEXT text
+	.BYTE $12
+	.BYTE text
+	.BYTE $92
+.endmacro
 
 ; speedscript 3.1 by charles brannon
-MSG1	hex 08 0e 9b 92 d3  50 45 45 44 d3 43 52 49
-	hex 50 54 20 33 2e 31 00
-MSG2	; by Charles Brannon
-	hex 20 42 59 20 C3 48 41 52 4C 45 53 20 C2 52 41 4E
-	hex 4E 4F 4E
-	BYTE 0
-killmsg	;TEXT "BUFFER CLEARED"
-	hex C25546464552 20 C34C4541524544
-	BYTE 0
-buferr	;TEXT "BUFFER FULL"
-	hex C25546464552 20 C6554C4C
-	BYTE 0
-delmsg	;TEXT "DELETE (S,W,P)"
-	hex C4454C45544520
-	SWP
-	BYTE 0
-ynmsg	;TEXT ": ARE YOU SURE? (Y/N):"
-	hex 3a20c1524520594f5520535552453f2028d92fce293a00
-clrmsg	;TEXT "ERASE ALL TEXT"
-	hex C5D2C1D3C520C1CCCC20D4C5D8D400
-erasmsg	;TEXT "ERASE (S,W,P): "
-	hex C55241534520
-	SWP
-	hex 3A20
-	RVS_RETURN
-	;TEXT " TO EXIT"
-	hex 20544F2045584954
-	BYTE 0
-formsg	;TEXT "PRESS FORMAT KEY:"
-	hex d05245535320464f524d4154204b45593a00
-savmsg  ;TEXT "SAVE:"
-	hex D34156453A00
-FNF	;TEXT "TAPE ERROR"
-	hex D441504520C5D2D2CFD200
-brmsg	;TEXT "STOPPED"
-	hex D3544F5050454400
-vererr	;TEXT "VERIFY ERROR"
-	hex D6455249465920C552524F5200
-okmsg	;TEXT "NO ERRORS"
-	hex ce4f204552524f525300
-tdmsg	BYTE 147,32,18,212,146
-	;TEXT "APE OR "
-	hex 415045204f5220
-	BYTE 18,196,146
-	;TEXT "ISK?"
-	hex 49534b3f
-	BYTE 0
-loadmsg ;TEXT "load:"
-	hex cc4f41443a00
-vermsg	;TEXT "VERIFY:"
-	hex d645524946593a00
-dirmsg	;TEXT "PRESS "
-	hex d05245535320
-	RVS_RETURN
-	BYTE 0
-dcmsg	;TEXT "DISK COMMAND:"
-	BYTE $80+'D,'I,'S,'K,' ,'C,'O,'M,'M,'A,'N,'D
-	BYTE ':,0
-dirname	BYTE '$
-inserr	;TEXT "NO ROOM"
-	hex CE4F20D24F4F4D00
-insmsg	;TEXT "NO TEXT IN BUFFER."
-	hex ce4f205445585420494e204255464645522e00
+MSG1	.BYTE $08, $0e, $9b, $92
+	.ASCIIZ "SpeedScript 3.1" 
+MSG2	.ASCIIZ " by Charles Brannon"
+killmsg	.ASCIIZ "Buffer Cleared"
+buferr	.ASCIIZ "Buffer Full"
+delmsg	.ASCIIZ "Delete (S,W,P)"
+ynmsg	.ASCIIZ ": Are you sure? (Y/N):"
+clrmsg	.ASCIIZ "ERASE ALL TEXT"
+erasmsg	.BYTE "Erase (S,W,P): "
+	RVS_TEXT "RETURN"
+	.ASCIIZ " to exit"
+formsg	.ASCIIZ "Press format key:"
+savmsg  .ASCIIZ "Save:"
+FNF	.ASCIIZ "Tape ERROR"
+brmsg	.ASCIIZ "Stopped"
+vererr	.ASCIIZ "Verify Error"
+okmsg	.ASCIIZ "No errors"
+tdmsg	.BYTE 147,space
+	RVS_TEXT "T"
+	.BYTE "ape or "
+	RVS_TEXT "D"
+	.ASCIIZ "isk?"
+loadmsg .ASCIIZ "Load:"
+vermsg	.ASCIIZ "Verify:"
+dirmsg	.BYTE "Press "
+	RVS_TEXT "RETURN"
+	.BYTE 0
+dcmsg	.ASCIIZ "Disk command:"
+dirname	.BYTE "$"
+inserr	.ASCIIZ "No Room"
+insmsg	.ASCIIZ "No text in buffer."
 choosemsg
-	BYTE 147
-	;TEXT "PRINT TO "
-	hex d052494e5420544f3a20
-	BYTE 18,211,146
-	;text "CREEN,"
-	hex 435245454e2c
-	BYTE 18,196,146
-	;text "ISK,"
-	hex 49534b2c
-	BYTE 18,208,146
-	;text "RINTER?"
-	hex 52494e5445523f00
-devmsg  ;text "Device number?"
-	hex c44556494345204e554d4245523f00
-sadrmsg ;text "Secondary address #?"
-	hex d345434f4e4441525920C144445245535320233f00
-fnmsg	;text "PRINT TO FILENAME:"
-	hex d052494e5420544f2046494c454e414d453a00
-prinmsg	;text "PRINTING..."
-	hex 93d052494e54494e472e2e2e
-	hex 0d0d00
-waitmsg	;text "Insert next sheet, press "
-	hex c94e53455254204e4558542053484545542c20
-	hex 505245535320
-	RVS_RETURN
-	BYTE 0
-srchmsg	;TEXT "Hunt for:"
-	hex c8554e5420464f523a00
-nfmsg	;TEXT "NOT FOUND"
-	hex ce4f5420C64f554e4400
-repmsg	hex D2 45 50 4C 41 43 45 20 57 49 54 48 3A 00
+	.BYTE 147
+	.BYTE "Print to: "
+	RVS_TEXT "S"
+	.BYTE "creen,"
+	RVS_TEXT "D"
+	.BYTE "isk,"
+	RVS_TEXT "P"
+	.ASCIIZ "rinter?"
+devmsg  .ASCIIZ "Device number?"
+sadrmsg .ASCIIZ "Secondary Address #?"
+fnmsg	.ASCIIZ "Print to filename:"
+prinmsg	.BYTE $93
+	.BYTE "Printing..."
+	.BYTE $0d,$0d,$00
+waitmsg	.BYTE "Insert next sheet, press "
+	RVS_TEXT "RETURN"
+	.BYTE 0
+srchmsg	.ASCIIZ "Hunt for:"
+nfmsg	.ASCIIZ "Not Found"
+repmsg	.ASCIIZ "Replace with:"
 xitmsg  
 	;EXIT SpeedScript
-	hex C5 D8 C9 D4 20
-	hex D3 50 45 45 44 D3 43 52 49 50 54 00
+	.ASCIIZ "EXIT SpeedScript"
 
 texstart
-	ORG *+2
+	.ORG *+2
 texend
-	ORG *+2
+	.ORG *+2
 texbuf
-	ORG *+2
+	.ORG *+2
 bufend
-	ORG *+2
+	.ORG *+2
 LENTABLE
-	ORG *+1
+	.ORG *+1
 toplin
-	ORG *+2
+	.ORG *+2
 msgflg
-	ORG *+1
+	.ORG *+1
 INSMODE
-	ORG *+1
+	.ORG *+1
 endpos
-	ORG *+1
+	.ORG *+1
 finpos
-	ORG *+1
+	.ORG *+1
 lastline
-	ORG *+2
+	.ORG *+2
 limit
-	ORG *+1
+	.ORG *+1
 inlen
-	ORG *+1
+	.ORG *+1
 BOTSCR
-	ORG *+2
+	.ORG *+2
 lbuff
-	ORG *+40
+	.ORG *+40
 inbuff
-	ORG *+40
+	.ORG *+40
 filename
-	ORG *+24
+	.ORG *+24
 fnlen
-	ORG *+1
+	.ORG *+1
 savcurr
-	ORG *+2
+	.ORG *+2
 bcd
-	ORG *+2
+	.ORG *+2
 hex
-	ORG *+2
+	.ORG *+2
 tptr
-	ORG *+2
+	.ORG *+2
 buflen
-	ORG *+2
+	.ORG *+2
 goblen
-	ORG *+2
+	.ORG *+2
 fromsav
-	ORG *+2
+	.ORG *+2
 destsav
-	ORG *+2
+	.ORG *+2
 hdlen
-	ORG *+1
+	.ORG *+1
 ftlen
-	ORG *+1
+	.ORG *+1
 lmargin
-	ORG *+1
+	.ORG *+1
 rmargin
-	ORG *+1
+	.ORG *+1
 pagelength
-	ORG *+1
+	.ORG *+1
 topmarg
-	ORG *+1
+	.ORG *+1
 botmarg
-	ORG *+1
+	.ORG *+1
 spacing
-	ORG *+1
+	.ORG *+1
 continuous
-	ORG *+1
+	.ORG *+1
 pagenum
-	ORG *+2
+	.ORG *+2
 startnum
-	ORG *+2
+	.ORG *+2
 pagewidth
-	ORG *+1
+	.ORG *+1
 nomarg
-	ORG *+1
+	.ORG *+1
 pos
-	ORG *+1
+	.ORG *+1
 line
-	ORG *+1
+	.ORG *+1
 ysave
-	ORG *+1
+	.ORG *+1
 savchar
-	ORG *+1
+	.ORG *+1
 inslen
-	ORG *+1
+	.ORG *+1
 devno
-	ORG *+1
+	.ORG *+1
 needasc
-	ORG *+1
+	.ORG *+1
 underline
-	ORG *+1
+	.ORG *+1
 fpos
-	ORG *+2
+	.ORG *+2
 pcr
-	ORG *+1
+	.ORG *+1
 huntlen
-	ORG *+1
+	.ORG *+1
 huntbuff
-	ORG *+30
+	.ORG *+30
 replen
-	ORG *+1
+	.ORG *+1
 repbuff
-	ORG *+30
+	.ORG *+30
 codebuffer
-	org *+128
+	.org *+128
 prbuff
-	org *+256
+	.org *+256
 hdbuff
-	org *+256
+	.org *+256
 firstrun
-	org *+1
+	.org *+1
 ftbuff
-	org *+256
+	.org *+256
 savcol
-	org *+1
+	.org *+1
 linefeed
-	org *+1
+	.org *+1
 blinkflag
-	org *+1
+	.org *+1
 END
 
 
