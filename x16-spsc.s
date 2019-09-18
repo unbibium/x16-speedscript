@@ -13,6 +13,7 @@ TEXENDVAL = $7F00
 
 INSCOLOR = 14
 TOPFGCOLOR = 1
+DEVICE_NUMBER = 1
 
 ; allow some dasm things
 .feature missing_char_term
@@ -476,7 +477,8 @@ INIT	LDA TEXCOLR
 	JSR chrout
 	;LDA #54
 	;STA map ; DISABLE BASIC if possible
-	STZ INSMODE
+	LDA #TOPFGCOLOR
+	STA INSMODE
 	STZ texstart
 	STZ texend
 	STZ texbuf
@@ -526,11 +528,11 @@ topclr	LDX $D9 ; columns
 	STZ V_L
 	LDA #space
 	LDY windcolr
+	STY 646
 toploop	STA V_1
 	STY V_1
 	DEX
 	BPL toploop
-	STY 646 ; set output color
 	LDA #19 ;HOME
 	JMP chrout
 ;Converts PETSCII to screen codes.
@@ -1079,7 +1081,7 @@ DODELIN
 
 ;Called by CTRL-D.  (etc)
 DELETE	JSR killbuff
-	LDA #2
+	LDA #$21 ; white on red
 	STA windcolr
 	JSR topclr
 	PrintMessage delmsg
@@ -1230,7 +1232,6 @@ inout	rts
 ;command line.
 instgl	LDA INSMODE
 	EOR #INSCOLOR << 4
-	ORA #TOPFGCOLOR
 	STA INSMODE
 	JMP sysmsg
 ;Another example of modular code.
@@ -1244,7 +1245,7 @@ YORNKEY JSR $FF9F  ; TODO: constant
 	CMP #'y
 	RTS
 ;Erase all text. (p108)
-CLEAR	LDA #2  ;red!
+CLEAR	LDA #$21 ;white on red
 	STA windcolr 
 	JSR topclr
 	PrintMessage clrmsg
@@ -1467,14 +1468,10 @@ dvn	.BYTE 0
 ;TOPEN
 topen	JSR input
 	BEQ OPABORT
-OP2	PrintMessage tdmsg
-	JSR getakey
-	LDX #8
-	CMP #'d
-	BEQ OPCONT
-	LDX #1
-	CMP #'t
-	BEQ OPCONT
+OP2	; this used to be the loop where
+        ; they asked Tape or Disk
+	LDX #1 ; device number always 1
+	BRA OPCONT
 OPABORT	JSR sysmsg
 	PLA
 	PLA
@@ -1532,6 +1529,7 @@ FORMAT	JSR topclr
 	ORA #$80
 	PHA
 	LDA INSMODE
+	AND #$F0 ;background color
 	BEQ NOINS
 	JSR inschar
 NOINS	JSR sysmsg
@@ -1597,7 +1595,7 @@ endir
 	rts
 dir	jsr clall
 	lda #1
-	ldx #8
+	ldx #DEFAULT_DEVICE
 	ldy #0
 	jsr setlfs
 	lda #1
@@ -2347,7 +2345,7 @@ dcmnd jsr clall
 	lda #0
 	jsr setnam
 	lda #15
-	ldx #8
+	ldx #DEFAULT_DEVICE
 	ldy #15
 	jsr setlfs
 	jsr open
@@ -2371,7 +2369,7 @@ readerr jsr clall
 	lda #0
 	jsr setnam
 	lda #15
-	ldx #8
+	ldx #DEFAULT_DEVICE
 	ldy #15
 	jsr setlfs
 	jsr open
@@ -2668,11 +2666,6 @@ FNF	.ASCIIZ "Tape ERROR"
 brmsg	.ASCIIZ "Stopped"
 vererr	.ASCIIZ "Verify Error"
 okmsg	.ASCIIZ "No errors"
-tdmsg	.BYTE 147,space
-	RVS_TEXT "T"
-	.BYTE "ape or "
-	RVS_TEXT "D"
-	.ASCIIZ "isk?"
 loadmsg .ASCIIZ "Load:"
 vermsg	.ASCIIZ "Verify:"
 dirmsg	.BYTE "Press "
