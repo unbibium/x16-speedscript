@@ -13,7 +13,7 @@ TEXENDVAL = $7F00
 
 INSCOLOR = 14
 TOPFGCOLOR = 1
-DEVICE_NUMBER = 1
+DEFAULT_DEVICE = 1
 
 ; allow some dasm things
 .feature missing_char_term
@@ -840,6 +840,11 @@ SAFE	STA toplin+1
 	JSR refresh
 	JMP lastword
 
+
+BORDER	LDA TEXCOLR
+	CLC
+	ADC #$10
+	STA TEXCOLR
 COLORALL LDA #$20
 	STA V_H
 	LDX #1
@@ -858,12 +863,6 @@ colorcol
 	BNE colorrow
 	rts
 	
-
-BORDER	LDA TEXCOLR
-	CLC
-	ADC #$10
-	STA TEXCOLR
-	JMP COLORALL
 scrcol	.BYTE 12 ; gray
 ;TEXCOLR (text color) is used in the refresh routine
 ;and stored into color memory. Both SCRCOL and TEXCOLR
@@ -879,7 +878,7 @@ LETTERS	LDA TEXCOLR
 	STX TEXCOLR
 	ORA TEXCOLR
 	STA TEXCOLR
-	JMP COLORALL
+	BRA COLORALL
 TEXCOLR	.BYTE $cb ;dark gray on light gray
 
 ;Sentence left. We look backward for ending punctuation
@@ -1470,7 +1469,7 @@ topen	JSR input
 	BEQ OPABORT
 OP2	; this used to be the loop where
         ; they asked Tape or Disk
-	LDX #1 ; device number always 1
+	LDX #DEFAULT_DEVICE 
 	BRA OPCONT
 OPABORT	JSR sysmsg
 	PLA
@@ -1595,7 +1594,7 @@ endir
 	rts
 dir	jsr clall
 	lda #1
-	ldx #DEFAULT_DEVICE
+	ldx #8; DEFAULT_DEVICE
 	ldy #0
 	jsr setlfs
 	lda #1

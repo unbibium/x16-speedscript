@@ -46,6 +46,8 @@ Missing features
 * Memory access beyond the first 32K
 * Faster screen drawing in 80 column mode
 * Disk directory (Ctrl-4) comes up blank.
+* Ctrl-H just puts up "Not Found"
 * Ctrl-R just puts up garbage.
-* Haven't tried Print yet
+* Ctrl-P just turns the screen black until you press Ctrl-B or Ctrl-L
+
 
