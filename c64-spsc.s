@@ -1,4 +1,5 @@
 ; SpeedScript 3.1
+
 ; copied by hand out of the pdf at archive.org
 ;
 
@@ -54,6 +55,8 @@ BASICEND: .byte 0,0
 	sta left+1
 .endmacro
 
+;Compares two 16-bit values, and sets the C and Z flags the
+;same as a LDA and CMP;instruction would for 8-bit addresses.
 .macro COMP16 left,right
 	sec
 	lda left
@@ -62,6 +65,15 @@ BASICEND: .byte 0,0
 	lda left+1
 	sbc right+1
 	ora temp
+.endmacro
+
+; Compares two 16-bit values but only affects the C flag.
+.macro COMPC16 left,right
+        SEC
+        LDA left
+        SBC right
+        LDA left+1
+        SBC right+1
 .endmacro
 
 ;  sub16 left,right       :  left - right -> left
@@ -84,6 +96,30 @@ BASICEND: .byte 0,0
 .endif
 .endmacro
 
+; Subtract an 8-bit value from a 16-bit one
+.macro sub8 left,right,dst,dst2
+	sec
+	lda left
+	sbc right
+.ifnblank dst
+	sta dst
+    .ifnblank dst2
+        sta dst2
+    .endif
+.else
+	sta left
+.endif
+	lda left+1
+	sbc #0
+.ifnblank dst
+	sta dst+1
+    .ifnblank dst2
+        sta dst2+1
+    .endif
+.else
+	sta left+1
+.endif
+.endmacro
 
 .macro PrintMessage message
 	LDA #<message
@@ -91,7 +127,7 @@ BASICEND: .byte 0,0
 	JSR PRMSG
 .endmacro
 
-.macro top_prmsg message
+.macro TopPrintMessage message
 	jsr topclr
 	PrintMessage message
 .endmacro
@@ -112,6 +148,11 @@ BASICEND: .byte 0,0
 	BASIC_OFF
 .endmacro
 
+.macro B_UNLESS_SHIFT_CTRL addr
+	LDA 653
+	CMP #5
+	BNE addr
+.endmacro
 
 ;Named constants not used in source.
 ;May be useful for future ports.
@@ -120,6 +161,7 @@ COLMEM = $D800
 COLUMNS = 40
 ROWS    = 25
 space   = 32
+PETSCII_CLR = 147
 
 ;Locations used by high-speed memory 
 ;move routines: 
@@ -690,13 +732,14 @@ VECT	.WORD right-1,left-1,wleft-1,wright-1,BORDER-1,LETTERS-1
 	.WORD endtex-1,print-1,FORMAT-1,dcmnd-1
 	.WORD DELIN-1,alpha-1,killbuff-1,HUNT-1,FREEMEM-1,tab-1
 	.WORD lottaspaces-1,repstart-1,endpar-1,SANDR-1
-;The check routine (yadda yadda page 102)
+
+;The CHECK routine first prevents the cursor from
+;disappearing past the beginning or end-of-text memory,
+;and prevents us from cursoring past the end-of-text pointer.
+;It also checks to see if the cursor has left the visible
+;screen, scrolling with REFRESH to make the cursor visible.
 check	JSR check2
-	SEC
-	LDA curr
-	SBC toplin
-	LDA curr+1
-	SBC toplin+1
+	COMPC16 curr,toplin
 	BCS OK1
 	COMP16 toplin,texstart
 	BEQ OK1
@@ -1009,7 +1052,7 @@ delc	copy16 froml,fromsav
 	adc tptr+1
 	cmp bufend+1
 	bcc gosav
-	top_prmsg buferr
+	TopPrintMessage buferr
 	lda #1
 	sta msgflg
 	lda #0
@@ -1059,21 +1102,13 @@ gosav	copy16 tptr,destl
 DELCHAR	jsr del1
 	jsr left
 	jsr del2
-fixtp 	sec
-	lda tptr
-	sbc #1
-	sta tptr
-	lda tptr+1
-	sbc #0
-	sta tptr+1
+fixtp 	sub8 tptr,#1
 	rts
 ;this is called from CTRL-back arrow.
 ;We first check to see if SHIFT is also
 ;held down. If so, we go to another routine
 ;that "eats" spaces.
-DELIN	LDA 653 ;TODO: label
-	CMP #5
-	BNE DODELIN
+DELIN	B_UNLESS_SHIFT_CTRL DODELIN
 	JMP EATSPACE
 DODELIN
 	JSR right
@@ -1464,7 +1499,7 @@ inexit	jsr chrout
 ; i/o
 
 TSAVE
-	top_prmsg savmsg
+	TopPrintMessage savmsg
 	jsr topen
 	bcs error
 	copy16 texstart,tex
@@ -1555,7 +1590,7 @@ skipdisk	lda inbuff,y
 	cpy inlen
 	bne skipdisk
 setname sty fnlen
-	top_prmsg inbuff
+	TopPrintMessage inbuff
 	lda fnlen
 	ldx #<filename
 	ldy #>filename
@@ -1583,7 +1618,7 @@ TLOAD
 	BEQ load2
 	lda #5
 	sta windcolr
-load2	top_prmsg loadmsg
+load2	TopPrintMessage loadmsg
 	jsr topen
 	lda windcolr
 	cmp #5
@@ -1598,10 +1633,10 @@ ldver	jsr load
 lod	stx lastline
 	sty lastline+1
 fine	jsr clall
-	top_prmsg okmsg
+	TopPrintMessage okmsg
 	jmp erxit
 ;verify
-verify	top_prmsg vermsg
+verify	TopPrintMessage vermsg
 	jsr topen
 	lda #1
 	ldx texstart
@@ -1610,7 +1645,7 @@ verify	top_prmsg vermsg
 	lda $90
 	and #191
 	beq fine
-	top_prmsg vererr
+	TopPrintMessage vererr
 	jmp erxit
 ;delite turns off the raster interrupt.
 delite	SEI
@@ -1730,13 +1765,7 @@ nonum	sed
 dechex	lda bcd
 	ora bcd+1
 	beq donenum
-	sec
-	lda bcd
-	sbc #1
-	sta bcd
-	lda bcd+1
-	sbc #0
-	sta bcd+1
+	sub8 bcd,#1
 	inc hex
 	bne nohexinc
 	inc hex+1
@@ -1893,7 +1922,7 @@ print	lda scrcol
 	and #1
 	bne askques
 	jmp overques
-askques	top_prmsg choosemsg
+askques	TopPrintMessage choosemsg
 	jsr getakey
 	and #127
 	ldx #3
@@ -1907,7 +1936,7 @@ notscreen
 	beq dofn
 	cmp #'p
 	bne pbort
-	top_prmsg devmsg
+	TopPrintMessage devmsg
 	jsr getakey
 	sec
 	sbc #48
@@ -1918,7 +1947,7 @@ notscreen
 	sta devno
 	jmp prcont
 
-dofn	top_prmsg fnmsg
+dofn	TopPrintMessage fnmsg
 	jsr input
 	beq pbort
 	ldy inlen
@@ -1939,7 +1968,7 @@ prcont	lda devno
 	bcc overques
 	cmp #8
 	bcs overques
-notd2	top_prmsg sadrmsg
+notd2	TopPrintMessage sadrmsg
 	jsr getakey
 	sec
 	sbc #'0
@@ -2123,7 +2152,7 @@ noipn	lda continuous
 	sbc startnum+1
 	bcc top
 	jsr clrchn
-	top_prmsg waitmsg
+	TopPrintMessage waitmsg
 	jsr getakey
 	jsr prin
 	ldx #1
@@ -2424,7 +2453,7 @@ dcout	lda #15
 	jsr close
 	jsr clall
 	jmp sysmsg
-okd	top_prmsg dcmsg
+okd	TopPrintMessage dcmsg
 	jsr input
 	beq readerr
 	ldx #15
@@ -2478,10 +2507,8 @@ NOSR	JMP sysmsg
 ;the hunt phrase. If SHIFT is not down, we
 ;perform the actual hunt. The line in the inbuff is compared with
 ;characters in text. (p121)
-HUNT	LDA 653
-	CMP #5
-	BNE CONTSRCH
-reset	top_prmsg srchmsg
+HUNT	B_UNLESS_SHIFT_CTRL CONTSRCH
+reset	TopPrintMessage srchmsg
 	jsr input
 	sta huntlen
 	bne oksrch
@@ -2527,30 +2554,20 @@ novfl	INX
 	lda lastline+1
 	sbc temp+1
 	bcc notfound
-	sec
-	lda temp
-	sbc huntlen
-	sta curr
-	sta fpos
-	lda temp+1
-	sbc #0
-	sta curr+1
-	sta fpos+1
+	sub8 temp,huntlen,curr,fpos
 	jsr check
 	rts
 
 	
 notfound
-	top_prmsg nfmsg
+	TopPrintMessage nfmsg
 	lda #1
 	sta msgflg
 	rts
 ;replace
 repstart
-	lda 653
-	cmp #5
-	bne repl
-askrep	top_prmsg repmsg
+	B_UNLESS_SHIFT_CTRL repl
+askrep	TopPrintMessage repmsg
 	jsr input
 	sta replen
 	beq norep
@@ -2582,13 +2599,7 @@ repl	sec
 	sta fromh
 	sub16 lastline,destl, llen
 	jsr umove
-	sec
-	lda lastline
-	sbc huntlen
-	sta lastline
-	lda lastline+1
-	sbc #0
-	sta lastline+1
+	sub8 lastline,huntlen
 	lda replen
 	beq norepl
 	sta inslen
@@ -2753,7 +2764,7 @@ dirname	.BYTE "$"
 inserr	.ASCIIZ "No Room"
 insmsg	.ASCIIZ "No text in buffer."
 choosemsg
-	.BYTE 147
+	.BYTE PETSCII_CLR
 	.BYTE "Print to: "
 	RVS_TEXT "S"
 	.BYTE "creen,"
