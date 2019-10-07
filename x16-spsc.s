@@ -230,9 +230,9 @@ scnkey = $FF9F
 
 ; VERA I/O registers
 
-V_H	= $9f20
+V_H	= $9f22
 V_M	= $9f21
-V_L	= $9f22
+V_L	= $9f20
 V_1	= $9f23
 
 ;Called only when run from BASIC. It is 
@@ -1417,7 +1417,7 @@ cursin	LDA #153 ; Light Green
 	JSR chrout
 	LDA #space
 	JSR chrout
-	LDA #157
+	LDA #157  ; cursor left
 	JSR chrout
 	sty inlen
 	jsr getakey
@@ -1427,7 +1427,7 @@ cursin	LDA #153 ; Light Green
 	jsr chrout 
 	LDA #space
 	JSR chrout
-	LDA #157  ; Left Arrow?
+	LDA #157  ; cursor left
 	JSR chrout
 	LDA #155  ; Light Gray
 	JSR chrout
