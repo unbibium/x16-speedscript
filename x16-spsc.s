@@ -26,6 +26,7 @@ space   = 32
 
 ;COLUMNS = $D9
 COLUMNS = $D9
+ROWS = $DA
 
 CURRENT_COLUMN = $D3
 QUOTE_MODE = $D4
@@ -63,10 +64,6 @@ BASICEND: .byte 0,0
 .endif
 .endmacro
 
-
-.macro ld_a_columns
-        lda COLUMNS
-.endmacro
 
 .macro add16 left,right
 	clc
@@ -485,7 +482,7 @@ CLEARED
 	STZ V_L
 	INC V_M
 	INX
-	CPX $DA ; rows
+	CPX ROWS ; rows
 	BEQ pdone
 	BRA PPAGE
 pdone	copy16 tex,BOTSCR
@@ -552,6 +549,7 @@ INIT
 	; for x16 only: fit
 	JSR SCREEN
 	STX COLUMNS
+	STY ROWS
 	LDA TEXCOLR
 	STA 646
 	LDA #PETSCII_MODE
@@ -944,7 +942,7 @@ colorcol
 	DEY
 	BNE colorcol
 	INX
-	CPX $DA ;ROWS
+	CPX ROWS ;ROWS
 	BNE colorrow
 	rts
 	
