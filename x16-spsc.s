@@ -22,6 +22,15 @@ PETSCII_CLR = 147
 PETSCII_MODE = $8F
 space   = 32
 
+
+
+;COLUMNS = $D9
+COLUMNS = $D9
+
+CURRENT_COLUMN = $D3
+QUOTE_MODE = $D4
+INSERT_MODE = $D8
+
 ; allow some dasm things
 .feature missing_char_term
 .feature labels_without_colons
@@ -52,6 +61,11 @@ BASICEND: .byte 0,0
 .ifnblank dst2
 	sta dst2+1
 .endif
+.endmacro
+
+
+.macro ld_a_columns
+        lda COLUMNS
 .endmacro
 
 .macro add16 left,right
@@ -211,6 +225,8 @@ retchar = 31
 ;Kernal Routines 
 ;(refer to the Commodore 64 Programmer's Reference ;Guide): 
 
+SCREEN = $FFED
+PLOT = $FFF0	
 chrout = $FFD2 
 stop = $FFE1 
 setlfs = $FFBA 
@@ -234,6 +250,7 @@ V_H	= $9f22
 V_M	= $9f21
 V_L	= $9f20
 V_1	= $9f23
+CTRL    = $9F25
 
 ;Called only when run from BASIC. It is 
 ;assumed that the author's initials (that 
@@ -423,7 +440,7 @@ PLINE	LDA (tex),Y
 	AND #127
 	CMP #retchar
 	BEQ BREAK
-	CPY $D9 ;COLUMNS
+	CPY COLUMNS ;COLUMNS
 	BNE PLINE
 	; hit column 39 without end-of-paragraph
 	; backspace until it hits a space
@@ -434,7 +451,7 @@ NXCUR	CMP #space
 	BEQ SBRK ; wrap at this character
 	DEY
 	BNE SLOOP
-	LDY $D9 ; columns
+	LDY COLUMNS ; columns
 	DEY
 	; copy line onto screen
 SBRK	INY
@@ -457,7 +474,7 @@ COPY	LDA lbuff,Y
 	BNE CLRLN
 	STY LENTABLE
 	; fill rest of line with spaces
-CLRLN	CPY $D9 ; columns
+CLRLN	CPY COLUMNS ; columns
 	BEQ CLEARED
 	LDA #32
 	STA V_1
@@ -531,7 +548,11 @@ getakey	JSR getin
 ;memory map, clears out certain flags, 
 ;and enables the raster interrupt
 
-INIT	LDA TEXCOLR
+INIT	
+	; for x16 only: fit
+	JSR SCREEN
+	STX COLUMNS
+	LDA TEXCOLR
 	STA 646
 	LDA #PETSCII_MODE
 	JSR chrout
@@ -580,11 +601,12 @@ sysmsg	LDA INSMODE
 	STZ msgflg
 	RTS
 
+V_H_INC1 = $10
 ;topclr keeps the command line clean.
 ;It is called before most messages.
 ;It's like a one-line clear-screen.
-topclr	LDX $D9 ; columns
-	LDA #$10 ; write both text & color
+topclr	LDX COLUMNS ; columns
+	LDA #V_H_INC1 ; write both text & color
 	STA V_H
 	STZ V_M
 	STZ V_L
@@ -916,7 +938,7 @@ colorrow
 	STX V_M
 	LDY #1
 	STY V_L
-	LDY $D9 ;Columns
+	LDY COLUMNS ;Columns
 colorcol
 	STA V_1
 	DEY
@@ -1407,8 +1429,8 @@ era2	sec
 	jmp erasagain
 ;the INPUT routine is used to get responses
 ;from the command line.
-input	LDA $D9 ;columns
-	SBC 211 ; current column
+input	LDA COLUMNS ;columns
+	SBC CURRENT_COLUMN ; current column
 	STA limit
 inp1	LDY #0
 cursin	LDA #153 ; Light Green
@@ -1453,8 +1475,8 @@ noback	lda temp
 	sta inbuff,y
 	jsr chrout
 	lda #0
-	sta 212 ; no quote mode
-	sta 216 ; no insert mode
+	sta QUOTE_MODE ; no quote mode
+	sta INSERT_MODE ; no insert mode
 	iny
 	jmp cursin
 inexit	jsr chrout
