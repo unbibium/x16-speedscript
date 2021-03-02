@@ -239,7 +239,7 @@ close = $FFC3
 load = $FFD5 
 save = $FFD8 
 ioinit = $FF84 
-scnkey = $FF9F
+;scnkey = $FF9F ; not supported in x16?
 
 ; VERA I/O registers
 
@@ -581,8 +581,8 @@ INIT2	JSR killbuff
 ; moved forward to match binary
 ;       TODO: confirm or convert 650/$9D settings 
 INIT3	LDA #128
-	STA 650 ;Set all keys to repeat. 
-	STA $9D ;Display system messages, hide I/O errors
+	;STA 650 ;Set all keys to repeat. 
+	;STA $9D ;Display system messages, hide I/O errors
 	copy16 texstart,curr
 	; display program title
 	JSR sysmsg
@@ -1299,7 +1299,7 @@ instgl	LDA INSMODE
 	JMP sysmsg
 ;Another example of modular code.
 YORN	PrintMessage ynmsg
-YORNKEY JSR scnkey
+YORNKEY ;JSR scnkey
 	JSR getin
 	BEQ YORNKEY
 	CMP #PETSCII_CLR ;user is spamming CLR/HOME
